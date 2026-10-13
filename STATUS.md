@@ -3,7 +3,9 @@
 ## Сейчас
 
 - Текущая фаза: итерации 001–004 завершены — приняты пользователем и влиты в `main`
-  (PR #1–#4). Новая итерация не начата.
+  (PR #1–#4). Публикация на GitHub Pages (по запросу пользователя 13.10.2026):
+  `base: './'`, workflow `.github/workflows/deploy.yml` (unit-тесты → сборка → Pages).
+  Адрес: https://alvblinov.github.io/habit-tracker/
 - Активный план: —.
   Выполнены: [plans/001-habit-tracker-v1.md](plans/001-habit-tracker-v1.md),
   [plans/002-reminders.md](plans/002-reminders.md),
