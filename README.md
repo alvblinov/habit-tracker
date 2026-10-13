@@ -31,6 +31,19 @@ npx playwright install chromium
 | `npm run test:unit` | unit-тесты логики (Vitest, без watch), `tests/unit/` |
 | `npm run test:e2e` | браузерные тесты (Playwright, Chromium), `tests/e2e/`; сам собирает и поднимает свежий сайт на порту 4173 (уже запущенный сервер не переиспользуется, порт должен быть свободен) |
 
+## Публикация (GitHub Pages)
+
+Сайт: https://alvblinov.github.io/habit-tracker/
+
+Workflow `.github/workflows/deploy.yml` при каждом push в `main` выполняет
+`npm ci`, `npm run test:unit`, `npm run build` и публикует `dist/` на GitHub Pages
+(в настройках репозитория: Pages → Source: GitHub Actions). Запустить вручную —
+вкладка Actions → «Deploy to GitHub Pages» → Run workflow. Сборка использует
+относительные пути (`base: './'` в `vite.config.js`), поэтому работает и в подпапке.
+
+Каждый посетитель получает свой трекер: данные хранятся только в его браузере
+(localStorage), аккаунтов и синхронизации между устройствами нет.
+
 ## Напоминания
 
 Кнопка 🔔 на карточке привычки открывает настройки напоминания:
