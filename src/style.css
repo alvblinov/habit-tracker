@@ -423,3 +423,65 @@ button {
   margin: 0;
   color: var(--danger);
 }
+
+/* --- Рекорд серии --- */
+
+.habit-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.habit-best-streak {
+  margin: 0;
+  color: #9a6700;
+  font-weight: 600;
+}
+
+/* --- Редактирование привычки --- */
+
+.edit-habit {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.edit-habit[aria-expanded='true'] {
+  outline: 2px solid #0969da;
+  outline-offset: 1px;
+}
+
+.edit-form {
+  display: grid;
+  gap: 8px;
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.edit-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.edit-save {
+  padding: 6px 16px;
+  color: #fff;
+  background: var(--accent);
+  border: 0;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.edit-save:hover {
+  background: var(--accent-dark);
+}
+
+.edit-cancel {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}

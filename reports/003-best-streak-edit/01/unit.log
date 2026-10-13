@@ -1,0 +1,13 @@
+
+> habit-tracker@0.1.0 test:unit
+> vitest run
+
+
+ RUN  v5.0.4 C:/Users/1/Documents/habit-tracker
+
+
+ Test Files  4 passed (4)
+      Tests  171 passed (171)
+   Start at  16:12:40
+   Duration  367ms (transform 36%, import 30%, tests 25%, worker 8%)
+

@@ -8,7 +8,11 @@ import {
   removeHabit,
   isDone,
   getStreak,
+  getBestStreak,
   getTodaySummary,
+  normalizeName,
+  updateHabit,
+  MAX_NAME_LENGTH,
 } from './habits.js';
 import { STORAGE_KEY, loadState, saveState } from './storage.js';
 import {
@@ -55,6 +59,10 @@ const CHECK_EVERY_MS = 15000;
 // поэтому перерисовка списка их не теряет.
 let openReminderId = null;
 let draft = null;
+
+// Форма редактирования привычки и её черновик — тоже в памяти модуля.
+let editingId = null;
+let editDraft = null;
 
 // «Сегодня» — локальная дата, вычисляется заново на каждом рендере и действии.
 function getToday() {
@@ -166,17 +174,23 @@ function renderCard(habit, today) {
   const header = document.createElement('div');
   header.className = 'habit-header';
 
-  const title = document.createElement('h2');
-  title.className = 'habit-title';
-  const emoji = document.createElement('span');
-  emoji.className = 'habit-emoji';
-  emoji.dataset.testid = 'habit-emoji';
-  emoji.textContent = habit.emoji;
-  const name = document.createElement('span');
-  name.className = 'habit-name';
-  name.dataset.testid = 'habit-name';
-  name.textContent = habit.name;
-  title.append(emoji, name);
+  const editing = editingId === habit.id && editDraft !== null;
+  if (editing) {
+    header.append(renderEditForm(habit));
+  } else {
+    const title = document.createElement('h2');
+    title.className = 'habit-title';
+    const emoji = document.createElement('span');
+    emoji.className = 'habit-emoji';
+    emoji.dataset.testid = 'habit-emoji';
+    emoji.textContent = habit.emoji;
+    const name = document.createElement('span');
+    name.className = 'habit-name';
+    name.dataset.testid = 'habit-name';
+    name.textContent = habit.name;
+    title.append(emoji, name);
+    header.append(title);
+  }
 
   const streak = getStreak(habit, today);
   const streakEl = document.createElement('p');
@@ -184,7 +198,20 @@ function renderCard(habit, today) {
   streakEl.dataset.testid = 'habit-streak';
   streakEl.textContent = `🔥 ${streak} ${pluralDays(streak)} подряд`;
 
-  header.append(title, streakEl);
+  const stats = document.createElement('div');
+  stats.className = 'habit-stats';
+  stats.append(streakEl);
+
+  const best = getBestStreak(habit);
+  if (best > 0) {
+    const bestEl = document.createElement('p');
+    bestEl.className = 'habit-best-streak';
+    bestEl.dataset.testid = 'habit-best-streak';
+    bestEl.textContent = best === streak ? '🏆 рекорд!' : `🏆 рекорд: ${best}`;
+    stats.append(bestEl);
+  }
+
+  header.append(stats);
 
   const actions = document.createElement('div');
   actions.className = 'habit-actions';
@@ -226,7 +253,20 @@ function renderCard(habit, today) {
     else openReminderPanel(habit);
   });
 
-  actions.append(todayBtn, reminderBtn, deleteBtn);
+  const editBtn = document.createElement('button');
+  editBtn.type = 'button';
+  editBtn.className = 'edit-habit';
+  editBtn.dataset.testid = 'edit-habit';
+  editBtn.textContent = '✏️';
+  editBtn.title = 'Изменить';
+  editBtn.setAttribute('aria-label', 'Изменить привычку');
+  editBtn.setAttribute('aria-expanded', String(editing));
+  editBtn.addEventListener('click', () => {
+    if (editingId === habit.id) closeEditForm();
+    else openEditForm(habit);
+  });
+
+  actions.append(todayBtn, reminderBtn, editBtn, deleteBtn);
 
   const grid = document.createElement('div');
   grid.className = 'day-grid';
@@ -263,6 +303,129 @@ function renderCard(habit, today) {
   if (openReminderId === habit.id && draft) li.append(renderReminderPanel(habit));
   li.append(grid);
   return li;
+}
+
+// --- Редактирование названия и эмодзи ---
+
+function findCard(habitId) {
+  for (const card of listEl.querySelectorAll('[data-habit-id]')) {
+    if (card.dataset.habitId === habitId) return card;
+  }
+  return null;
+}
+
+function focusInCard(habitId, testid) {
+  findCard(habitId)?.querySelector(`[data-testid="${testid}"]`)?.focus();
+}
+
+function openEditForm(habit) {
+  editingId = habit.id;
+  editDraft = { name: habit.name, emoji: habit.emoji };
+  render();
+  focusInCard(habit.id, 'edit-name-input');
+}
+
+function closeEditForm() {
+  const id = editingId;
+  editingId = null;
+  editDraft = null;
+  render();
+  if (id !== null) focusInCard(id, 'edit-habit');
+}
+
+function saveEdit(habitId) {
+  if (normalizeName(editDraft.name) === null) {
+    // Пустое название или только пробелы — не сохраняем, форма остаётся открытой.
+    editDraft.name = '';
+    render();
+    focusInCard(habitId, 'edit-name-input');
+    return;
+  }
+  const next = updateHabit(state, habitId, editDraft);
+  editingId = null;
+  editDraft = null;
+  if (next === state) render();
+  else commit(next);
+  focusInCard(habitId, 'edit-habit');
+}
+
+function renderEditForm(habit) {
+  const editForm = document.createElement('form');
+  editForm.className = 'edit-form';
+  editForm.dataset.testid = 'edit-form';
+  editForm.autocomplete = 'off';
+  editForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    saveEdit(habit.id);
+  });
+  editForm.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeEditForm();
+    }
+  });
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'name-input edit-name-input';
+  input.dataset.testid = 'edit-name-input';
+  input.maxLength = MAX_NAME_LENGTH;
+  input.value = editDraft.name;
+  input.setAttribute('aria-label', 'Название привычки');
+  input.addEventListener('input', () => {
+    editDraft.name = input.value;
+  });
+
+  const options = document.createElement('div');
+  options.className = 'emoji-options';
+  options.setAttribute('role', 'radiogroup');
+  options.setAttribute('aria-label', 'Эмодзи');
+  for (const emoji of EMOJIS) {
+    const label = document.createElement('label');
+    label.className = 'emoji-option';
+    label.dataset.testid = 'edit-emoji-option';
+    label.dataset.emoji = emoji;
+    label.title = emoji;
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = `edit-emoji-${habit.id}`;
+    radio.value = emoji;
+    radio.className = 'visually-hidden';
+    radio.checked = emoji === editDraft.emoji;
+    radio.setAttribute('aria-label', emoji);
+    radio.addEventListener('change', () => {
+      if (radio.checked) editDraft.emoji = emoji;
+    });
+
+    const face = document.createElement('span');
+    face.className = 'emoji-option-face';
+    face.setAttribute('aria-hidden', 'true');
+    face.textContent = emoji;
+
+    label.append(radio, face);
+    options.append(label);
+  }
+
+  const buttons = document.createElement('div');
+  buttons.className = 'edit-buttons';
+
+  const save = document.createElement('button');
+  save.type = 'submit';
+  save.className = 'edit-save';
+  save.dataset.testid = 'edit-save';
+  save.textContent = 'Сохранить';
+
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'edit-cancel';
+  cancel.dataset.testid = 'edit-cancel';
+  cancel.textContent = 'Отмена';
+  cancel.addEventListener('click', closeEditForm);
+
+  buttons.append(save, cancel);
+  editForm.append(input, options, buttons);
+  return editForm;
 }
 
 // --- Панель настроек напоминания ---
@@ -512,6 +675,8 @@ function captureFocus() {
     date: active.dataset.date,
     // Переключатели режима напоминания различаются значением.
     value: active.type === 'radio' ? active.value : undefined,
+    // Положение курсора в текстовом поле (форма редактирования).
+    selection: active.type === 'text' ? [active.selectionStart, active.selectionEnd] : undefined,
   };
 }
 
@@ -522,12 +687,17 @@ function restoreFocus(saved) {
     for (const el of card.querySelectorAll(`[data-testid="${saved.testid}"]`)) {
       if (el.dataset.date === saved.date && (saved.value === undefined || el.value === saved.value)) {
         el.focus();
+        if (saved.selection) el.setSelectionRange(...saved.selection);
         return;
       }
     }
     // Панель напоминания закрылась — вернуть фокус на кнопку 🔔 этой карточки.
     if (saved.testid.startsWith('reminder-')) {
       card.querySelector('[data-testid="reminder-toggle"]')?.focus();
+    }
+    // Форма редактирования закрылась — вернуть фокус на кнопку ✏️.
+    if (saved.testid.startsWith('edit-')) {
+      card.querySelector('[data-testid="edit-habit"]')?.focus();
     }
     return;
   }
@@ -546,6 +716,11 @@ function render() {
   if (openReminderId !== null && !state.habits.some((h) => h.id === openReminderId)) {
     openReminderId = null;
     draft = null;
+  }
+  // Привычку с открытой формой редактирования тоже могли удалить.
+  if (editingId !== null && !state.habits.some((h) => h.id === editingId)) {
+    editingId = null;
+    editDraft = null;
   }
   hintEl.hidden = !(openReminderId !== null || state.habits.some((h) => h.reminder));
 
