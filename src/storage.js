@@ -3,6 +3,7 @@
 
 import { isDateKey } from './dates.js';
 import { createEmptyState, normalizeName, normalizeEmoji, MAX_NAME_LENGTH } from './habits.js';
+import { normalizeReminder } from './reminders.js';
 
 export const STORAGE_KEY = 'habit-tracker:v1';
 
@@ -21,6 +22,8 @@ function sanitizeHabit(raw) {
     emoji: normalizeEmoji(raw.emoji),
     createdAt: raw.createdAt,
     done,
+    // Данные первой версии без поля reminder и битые напоминания → null; привычка сохраняется.
+    reminder: normalizeReminder(raw.reminder),
   };
 }
 

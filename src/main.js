@@ -11,6 +11,18 @@ import {
   getTodaySummary,
 } from './habits.js';
 import { STORAGE_KEY, loadState, saveState } from './storage.js';
+import {
+  INTERVALS,
+  MAX_TIMES,
+  DEFAULT_START,
+  DEFAULT_END,
+  normalizeReminder,
+  setReminder,
+  clearReminder,
+  describeReminder,
+  findDueReminders,
+} from './reminders.js';
+import { ensurePermission, showNotification } from './notify.js';
 
 const GRID_DAYS = 30;
 
@@ -34,6 +46,15 @@ const emojiOptions = document.querySelector('#emoji-options');
 const summaryEl = document.querySelector('#today-summary');
 const emptyEl = document.querySelector('#empty-state');
 const listEl = document.querySelector('#habit-list');
+const hintEl = document.querySelector('#reminder-hint');
+const bannersEl = document.querySelector('#reminder-banners');
+
+const CHECK_EVERY_MS = 15000;
+
+// Открытая панель напоминания и её черновик живут в памяти модуля,
+// поэтому перерисовка списка их не теряет.
+let openReminderId = null;
+let draft = null;
 
 // «Сегодня» — локальная дата, вычисляется заново на каждом рендере и действии.
 function getToday() {
@@ -191,7 +212,21 @@ function renderCard(habit, today) {
     }
   });
 
-  actions.append(todayBtn, deleteBtn);
+  const reminderBtn = document.createElement('button');
+  reminderBtn.type = 'button';
+  reminderBtn.className = 'reminder-toggle';
+  if (habit.reminder) reminderBtn.classList.add('is-active');
+  reminderBtn.dataset.testid = 'reminder-toggle';
+  reminderBtn.textContent = '🔔';
+  reminderBtn.title = 'Напоминание';
+  reminderBtn.setAttribute('aria-label', 'Напоминание');
+  reminderBtn.setAttribute('aria-expanded', String(openReminderId === habit.id));
+  reminderBtn.addEventListener('click', () => {
+    if (openReminderId === habit.id) closeReminderPanel();
+    else openReminderPanel(habit);
+  });
+
+  actions.append(todayBtn, reminderBtn, deleteBtn);
 
   const grid = document.createElement('div');
   grid.className = 'day-grid';
@@ -216,8 +251,252 @@ function renderCard(habit, today) {
     grid.append(cell);
   }
 
-  li.append(header, actions, grid);
+  li.append(header);
+  if (habit.reminder) {
+    const label = document.createElement('p');
+    label.className = 'reminder-label';
+    label.dataset.testid = 'reminder-label';
+    label.textContent = `🔔 ${describeReminder(habit.reminder)}`;
+    li.append(label);
+  }
+  li.append(actions);
+  if (openReminderId === habit.id && draft) li.append(renderReminderPanel(habit));
+  li.append(grid);
   return li;
+}
+
+// --- Панель настроек напоминания ---
+
+function draftFromReminder(reminder) {
+  const r = normalizeReminder(reminder);
+  return {
+    mode: r ? r.mode : 'interval',
+    intervalMin: r && r.mode === 'interval' ? r.intervalMin : 60,
+    start: r && r.mode === 'interval' ? r.start : DEFAULT_START,
+    end: r && r.mode === 'interval' ? r.end : DEFAULT_END,
+    times: r && r.mode === 'times' ? [...r.times] : ['09:00'],
+    error: '',
+  };
+}
+
+function openReminderPanel(habit) {
+  openReminderId = habit.id;
+  draft = draftFromReminder(habit.reminder);
+  render();
+}
+
+function closeReminderPanel() {
+  openReminderId = null;
+  draft = null;
+  render();
+}
+
+// Следующий свободный «круглый» час после последнего времени в списке.
+function nextFreeTime(times) {
+  const filled = times.filter(Boolean).sort();
+  const last = filled[filled.length - 1];
+  let hour = last ? (Number(last.slice(0, 2)) + 1) % 24 : 9;
+  for (let i = 0; i < 24; i += 1, hour = (hour + 1) % 24) {
+    const value = `${String(hour).padStart(2, '0')}:00`;
+    if (!times.includes(value)) return value;
+  }
+  return '';
+}
+
+function saveDraft(habitId) {
+  const input = draft.mode === 'interval'
+    ? { mode: 'interval', intervalMin: draft.intervalMin, start: draft.start, end: draft.end }
+    : { mode: 'times', times: draft.times.filter((t) => t !== '') };
+
+  if (input.mode === 'interval' && !(input.start && input.end && input.start < input.end)) {
+    draft.error = 'Начало активных часов должно быть раньше конца.';
+    render();
+    return;
+  }
+  if (input.mode === 'times' && input.times.length === 0) {
+    draft.error = 'Добавьте хотя бы одно время.';
+    render();
+    return;
+  }
+  const next = setReminder(state, habitId, input, Date.now());
+  if (next === state) {
+    draft.error = 'Проверьте настройки напоминания.';
+    render();
+    return;
+  }
+  // Разрешение на уведомления — по действию пользователя, при включении напоминания.
+  ensurePermission();
+  openReminderId = null;
+  draft = null;
+  commit(next);
+}
+
+function makeField(labelText, control) {
+  const label = document.createElement('label');
+  label.className = 'reminder-field';
+  const caption = document.createElement('span');
+  caption.textContent = labelText;
+  label.append(caption, control);
+  return label;
+}
+
+function makeTimeInput(value, testid, onInput) {
+  const input = document.createElement('input');
+  input.type = 'time';
+  input.className = 'reminder-time-input';
+  input.dataset.testid = testid;
+  input.value = value;
+  input.addEventListener('input', () => onInput(input.value));
+  return input;
+}
+
+function renderReminderPanel(habit) {
+  const panel = document.createElement('div');
+  panel.className = 'reminder-panel';
+  panel.dataset.testid = 'reminder-panel';
+
+  // Режим
+  const modes = document.createElement('fieldset');
+  modes.className = 'reminder-modes';
+  const legend = document.createElement('legend');
+  legend.className = 'field-label';
+  legend.textContent = 'Напоминание';
+  modes.append(legend);
+  for (const [value, text] of [['interval', 'Каждые N'], ['times', 'В определённое время']]) {
+    const label = document.createElement('label');
+    label.className = 'reminder-mode-option';
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = `reminder-mode-${habit.id}`;
+    radio.value = value;
+    radio.dataset.testid = 'reminder-mode';
+    radio.checked = draft.mode === value;
+    radio.addEventListener('change', () => {
+      draft.mode = value;
+      draft.error = '';
+      render();
+    });
+    const caption = document.createElement('span');
+    caption.textContent = text;
+    label.append(radio, caption);
+    modes.append(label);
+  }
+  panel.append(modes);
+
+  if (draft.mode === 'interval') {
+    const row = document.createElement('div');
+    row.className = 'reminder-row';
+
+    const select = document.createElement('select');
+    select.dataset.testid = 'reminder-interval';
+    const names = { 30: '30 минут', 60: '1 час', 120: '2 часа', 180: '3 часа' };
+    for (const min of INTERVALS) {
+      const option = document.createElement('option');
+      option.value = String(min);
+      option.textContent = names[min] ?? `${min} минут`;
+      option.selected = min === draft.intervalMin;
+      select.append(option);
+    }
+    select.addEventListener('change', () => {
+      draft.intervalMin = Number(select.value);
+    });
+
+    const start = makeTimeInput(draft.start, 'reminder-start', (v) => {
+      draft.start = v;
+    });
+    const end = makeTimeInput(draft.end, 'reminder-end', (v) => {
+      draft.end = v;
+    });
+
+    row.append(makeField('Каждые', select), makeField('с', start), makeField('до', end));
+    panel.append(row);
+  } else {
+    const list = document.createElement('div');
+    list.className = 'reminder-times';
+    draft.times.forEach((value, index) => {
+      const item = document.createElement('div');
+      item.className = 'reminder-time-item';
+      const input = makeTimeInput(value, 'reminder-time', (v) => {
+        draft.times[index] = v;
+      });
+      input.setAttribute('aria-label', `Время ${index + 1}`);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'reminder-remove-time';
+      remove.dataset.testid = 'reminder-remove-time';
+      remove.textContent = '×';
+      remove.title = 'Удалить время';
+      remove.setAttribute('aria-label', 'Удалить время');
+      remove.disabled = draft.times.length <= 1;
+      remove.addEventListener('click', () => {
+        draft.times.splice(index, 1);
+        render();
+      });
+      item.append(input, remove);
+      list.append(item);
+    });
+
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = 'reminder-add-time';
+    add.dataset.testid = 'reminder-add-time';
+    add.textContent = '+ время';
+    add.disabled = draft.times.length >= MAX_TIMES;
+    add.addEventListener('click', () => {
+      if (draft.times.length >= MAX_TIMES) return;
+      draft.times.push(nextFreeTime(draft.times));
+      render();
+    });
+    list.append(add);
+    panel.append(list);
+  }
+
+  if (draft.error) {
+    const error = document.createElement('p');
+    error.className = 'reminder-error';
+    error.dataset.testid = 'reminder-error';
+    error.setAttribute('role', 'alert');
+    error.textContent = draft.error;
+    panel.append(error);
+  }
+
+  const buttons = document.createElement('div');
+  buttons.className = 'reminder-buttons';
+
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.className = 'reminder-save';
+  save.dataset.testid = 'reminder-save';
+  save.textContent = 'Сохранить';
+  save.addEventListener('click', () => saveDraft(habit.id));
+  buttons.append(save);
+
+  if (habit.reminder) {
+    const off = document.createElement('button');
+    off.type = 'button';
+    off.className = 'reminder-off';
+    off.dataset.testid = 'reminder-off';
+    off.textContent = 'Выключить';
+    off.addEventListener('click', () => {
+      openReminderId = null;
+      draft = null;
+      const next = clearReminder(state, habit.id);
+      if (next === state) render();
+      else commit(next);
+    });
+    buttons.append(off);
+  }
+
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'reminder-cancel';
+  cancel.dataset.testid = 'reminder-cancel';
+  cancel.textContent = 'Отмена';
+  cancel.addEventListener('click', closeReminderPanel);
+  buttons.append(cancel);
+
+  panel.append(buttons);
+  return panel;
 }
 
 // Фокус клавиатуры: список перестраивается целиком, поэтому запоминаем,
@@ -231,6 +510,8 @@ function captureFocus() {
     testid: active.dataset.testid,
     habitId: card.dataset.habitId,
     date: active.dataset.date,
+    // Переключатели режима напоминания различаются значением.
+    value: active.type === 'radio' ? active.value : undefined,
   };
 }
 
@@ -239,10 +520,14 @@ function restoreFocus(saved) {
   for (const card of listEl.querySelectorAll('[data-habit-id]')) {
     if (card.dataset.habitId !== saved.habitId) continue;
     for (const el of card.querySelectorAll(`[data-testid="${saved.testid}"]`)) {
-      if (el.dataset.date === saved.date) {
+      if (el.dataset.date === saved.date && (saved.value === undefined || el.value === saved.value)) {
         el.focus();
         return;
       }
+    }
+    // Панель напоминания закрылась — вернуть фокус на кнопку 🔔 этой карточки.
+    if (saved.testid.startsWith('reminder-')) {
+      card.querySelector('[data-testid="reminder-toggle"]')?.focus();
     }
     return;
   }
@@ -256,6 +541,13 @@ function render() {
   summaryEl.textContent = `Сегодня выполнено ${done} из ${total}`;
 
   emptyEl.hidden = state.habits.length > 0;
+
+  // Привычку с открытой панелью могли удалить (в т.ч. в другой вкладке).
+  if (openReminderId !== null && !state.habits.some((h) => h.id === openReminderId)) {
+    openReminderId = null;
+    draft = null;
+  }
+  hintEl.hidden = !(openReminderId !== null || state.habits.some((h) => h.reminder));
 
   listEl.replaceChildren(...state.habits.map((habit) => renderCard(habit, today)));
   restoreFocus(savedFocus);
@@ -276,8 +568,67 @@ window.addEventListener('storage', (event) => {
 function refresh() {
   reloadState();
   render();
+  checkReminders();
 }
 window.addEventListener('focus', refresh);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') refresh();
 });
+
+// --- Напоминания: планировщик и плашки ---
+
+// Плашки (когда системные уведомления запрещены/недоступны): не более одной на привычку.
+let banners = [];
+
+function renderBanners() {
+  bannersEl.replaceChildren(
+    ...banners.map((banner) => {
+      const el = document.createElement('div');
+      el.className = 'reminder-banner';
+      el.dataset.testid = 'reminder-banner';
+      el.setAttribute('role', 'status');
+      const text = document.createElement('span');
+      text.className = 'reminder-banner-text';
+      text.textContent = banner.text;
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'reminder-banner-close';
+      close.dataset.testid = 'reminder-banner-close';
+      close.textContent = 'Понятно';
+      close.addEventListener('click', () => {
+        banners = banners.filter((b) => b !== banner);
+        renderBanners();
+      });
+      el.append(text, close);
+      return el;
+    }),
+  );
+}
+
+function notifyHabit(habit, at) {
+  const title = `${habit.emoji} Пора: ${habit.name}`;
+  if (showNotification({ title, tag: `${habit.id}-${at}` })) return;
+  banners = [...banners.filter((b) => b.habitId !== habit.id), { habitId: habit.id, text: title }];
+  renderBanners();
+}
+
+// Время считается по часам (Date.now()), а не по числу тиков таймера.
+// Отсчёт с момента загрузки страницы: время до открытия не даёт уведомлений (AC-14).
+let lastCheck = Date.now();
+
+function checkReminders() {
+  const now = Date.now();
+  if (now <= lastCheck) {
+    // Часы перевели назад — начинаем отсчёт заново.
+    lastCheck = now;
+    return;
+  }
+  const due = findDueReminders(state, lastCheck, now);
+  lastCheck = now;
+  for (const { habitId, at } of due) {
+    const habit = state.habits.find((h) => h.id === habitId);
+    if (habit) notifyHabit(habit, at);
+  }
+}
+
+setInterval(checkReminders, CHECK_EVERY_MS);

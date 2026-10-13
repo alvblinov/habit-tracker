@@ -119,3 +119,63 @@ describe('saveState', () => {
     expect(loadState(storage)).toEqual(createEmptyState());
   });
 });
+
+describe('напоминания в хранилище (AC-15)', () => {
+  const oldHabit = (over = {}) => ({
+    id: 'old',
+    name: 'Читать',
+    emoji: '📚',
+    createdAt: '2026-09-01',
+    done: ['2026-10-12', TODAY],
+    ...over,
+  });
+  const store = (habits) => createStorage({ [STORAGE_KEY]: JSON.stringify({ version: 1, habits }) });
+
+  it('данные первой версии без поля reminder открываются, reminder = null, привычка и отметки целы', () => {
+    const state = loadState(store([oldHabit()]));
+    expect(state.habits).toHaveLength(1);
+    expect(state.habits[0]).toMatchObject({ id: 'old', name: 'Читать', emoji: '📚', reminder: null });
+    expect(state.habits[0].done).toEqual(['2026-10-12', TODAY]);
+  });
+
+  it.each([
+    ['строка', 'каждый час'],
+    ['число', 5],
+    ['неизвестный режим', { mode: 'weekly', times: ['08:00'] }],
+    ['недопустимый интервал', { mode: 'interval', intervalMin: 45, start: '09:00', end: '21:00', anchor: 1 }],
+    ['начало позже конца', { mode: 'interval', intervalMin: 60, start: '21:00', end: '09:00', anchor: 1 }],
+    ['interval без anchor', { mode: 'interval', intervalMin: 60, start: '09:00', end: '21:00' }],
+    ['6 разных времён', { mode: 'times', times: ['01:00', '02:00', '03:00', '04:00', '05:00', '06:00'] }],
+    ['пустой список времён', { mode: 'times', times: [] }],
+    ['время не HH:MM', { mode: 'times', times: ['8 утра'] }],
+  ])('битое напоминание (%s) → reminder = null, привычка цела', (_title, reminder) => {
+    const state = loadState(store([oldHabit({ reminder }), oldHabit({ id: 'second', name: 'Бег' })]));
+    expect(state.habits.map((h) => h.id)).toEqual(['old', 'second']);
+    expect(state.habits[0].reminder).toBeNull();
+    expect(state.habits[0].done).toEqual(['2026-10-12', TODAY]);
+  });
+
+  it('save → load сохраняет напоминания обоих режимов, включая момент включения', () => {
+    const storage = createStorage();
+    const anchor = new Date(2026, 9, 13, 10, 15).getTime();
+    const state = sampleState();
+    state.habits[0] = {
+      ...state.habits[0],
+      reminder: { mode: 'interval', intervalMin: 120, start: '10:00', end: '18:00', anchor },
+    };
+    state.habits[1] = { ...state.habits[1], reminder: { mode: 'times', times: ['08:00', '20:00'] } };
+    saveState(storage, state);
+    const loaded = loadState(storage);
+    expect(loaded.habits[0].reminder).toEqual({ mode: 'interval', intervalMin: 120, start: '10:00', end: '18:00', anchor });
+    expect(loaded.habits[1].reminder).toEqual({ mode: 'times', times: ['08:00', '20:00'] });
+    expect([...loaded.habits[0].done].sort()).toEqual(['2026-10-12', TODAY]);
+  });
+
+  it('хранилище не меняет ключ и версию из-за напоминаний', () => {
+    const storage = createStorage();
+    const state = sampleState();
+    state.habits[0] = { ...state.habits[0], reminder: { mode: 'times', times: ['08:00'] } };
+    saveState(storage, state);
+    expect(JSON.parse(storage.getItem('habit-tracker:v1')).version).toBe(1);
+  });
+});
