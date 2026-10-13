@@ -2,15 +2,15 @@
 
 ## Сейчас
 
-- Текущая фаза: итерация 004 «Расписание и статистика» — проверена и принята пользователем 13.10.2026, PR в `main`
-  (ветка `feature/schedule-stats`). Итерации 001–003 приняты и влиты в `main` (PR #1, #2, #3).
-- Активный план: [plans/004-schedule-stats.md](plans/004-schedule-stats.md) (утверждён 13.10.2026);
-  прогоны `reports/004-schedule-stats/01/` (FIX) и `02/` (PASS).
+- Текущая фаза: итерации 001–004 завершены — приняты пользователем и влиты в `main`
+  (PR #1–#4). Новая итерация не начата.
+- Активный план: —.
   Выполнены: [plans/001-habit-tracker-v1.md](plans/001-habit-tracker-v1.md),
   [plans/002-reminders.md](plans/002-reminders.md),
-  [plans/003-best-streak-edit.md](plans/003-best-streak-edit.md)
-- Последняя проверенная версия / коммит: 3587917 + незакоммиченные изменения итерации 004
-  (unit, e2e, сборка и аудит выполнены на этой версии файлов)
+  [plans/003-best-streak-edit.md](plans/003-best-streak-edit.md),
+  [plans/004-schedule-stats.md](plans/004-schedule-stats.md) (прогоны `reports/004-schedule-stats/01/` FIX, `02/` PASS)
+- Последняя проверенная версия / коммит: 785a366 — merge PR #4 (код = ea64e82, на нём
+  выполнены unit, e2e, сборка, аудит и ручная приёмка)
 
 ## Выполнено
 
@@ -52,15 +52,16 @@
 
 ## Следующий шаг
 
-- Ревью и слияние PR итерации 004 в `main`.
+- Следующая итерация не согласована — выбрать функцию, провести интервью, план 005.
+  Кандидаты из прошлых обсуждений: экспорт/импорт данных, порядок привычек, отмена удаления.
 
 ## Git
 
-- Ветка: `feature/schedule-stats` (от `main` = 3587917)
-- Незакоммиченные изменения: нет (итерация 004 закоммичена в `feature/schedule-stats`)
+- Ветка: `main` = 785a366 (merge PR #4) + этот коммит STATUS.md
 - Отправка на GitHub: https://github.com/alvblinov/habit-tracker;
   PR [#1](https://github.com/alvblinov/habit-tracker/pull/1),
-  [#2](https://github.com/alvblinov/habit-tracker/pull/2) и
-  [#3](https://github.com/alvblinov/habit-tracker/pull/3) влиты
-- Ветки `fix/cycle-02-audit`, `feature/reminders` и `feature/best-streak-edit` влиты и удалены
-  (локально и на GitHub)
+  [#2](https://github.com/alvblinov/habit-tracker/pull/2),
+  [#3](https://github.com/alvblinov/habit-tracker/pull/3) и
+  [#4](https://github.com/alvblinov/habit-tracker/pull/4) влиты
+- Ветки итераций (`fix/cycle-02-audit`, `feature/reminders`, `feature/best-streak-edit`,
+  `feature/schedule-stats`) влиты и удалены (локально и на GitHub)
