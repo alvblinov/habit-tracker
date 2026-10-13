@@ -36,6 +36,7 @@ export function addHabit(state, { name, emoji } = {}, { id, todayKey } = {}) {
     emoji: normalizeEmoji(emoji),
     createdAt: todayKey,
     done: [],
+    reminder: null,
   };
   return { ...state, habits: [...state.habits, habit] };
 }

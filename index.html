@@ -9,6 +9,8 @@
     <main id="app">
       <h1>Трекер привычек</h1>
 
+      <div id="reminder-banners" class="reminder-banners" aria-live="polite"></div>
+
       <form id="add-form" class="add-form" autocomplete="off">
         <label class="field-label" for="habit-name">Новая привычка</label>
         <input
@@ -27,6 +29,8 @@
       </form>
 
       <p id="today-summary" class="summary" data-testid="today-summary" aria-live="polite"></p>
+
+      <p id="reminder-hint" class="reminder-hint" data-testid="reminder-hint" hidden>Напоминания приходят, пока эта вкладка открыта</p>
 
       <p id="empty-state" class="empty-state" data-testid="empty-state" hidden>Добавьте первую привычку</p>
       <ul id="habit-list" class="habit-list"></ul>

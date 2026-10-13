@@ -269,3 +269,157 @@ button {
   outline: 2px solid #0969da;
   outline-offset: 1px;
 }
+
+/* --- Напоминания --- */
+
+.reminder-banners {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.reminder-banners:empty {
+  display: none;
+}
+
+.reminder-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 12px 16px;
+  background: #fff8c5;
+  border: 1px solid #d4a72c;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.reminder-banner-text {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.reminder-banner-close {
+  padding: 6px 14px;
+  border: 1px solid #d4a72c;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.reminder-hint {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.reminder-toggle {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.reminder-toggle.is-active {
+  border-color: #0969da;
+  background: #ddf4ff;
+}
+
+.reminder-toggle[aria-expanded='true'] {
+  outline: 2px solid #0969da;
+  outline-offset: 1px;
+}
+
+.reminder-label {
+  margin: 0;
+  color: #0969da;
+  font-size: 0.95rem;
+}
+
+.reminder-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  background: #f6f8fa;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.reminder-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.reminder-modes legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+
+.reminder-mode-option,
+.reminder-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reminder-row,
+.reminder-times,
+.reminder-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.reminder-time-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.reminder-panel select,
+.reminder-time-input {
+  padding: 6px 8px;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.reminder-remove-time,
+.reminder-add-time,
+.reminder-cancel,
+.reminder-off {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.reminder-remove-time:disabled,
+.reminder-add-time:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.reminder-off {
+  color: var(--danger);
+}
+
+.reminder-save {
+  padding: 6px 16px;
+  color: #fff;
+  background: var(--accent);
+  border: 0;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.reminder-error {
+  margin: 0;
+  color: var(--danger);
+}
