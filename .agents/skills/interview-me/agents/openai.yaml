@@ -1,0 +1,4 @@
+interface:
+  display_name: "Interview Me"
+  short_description: "Clarify intent before planning"
+  default_prompt: "Use $interview-me to clarify the real objective, success criteria, constraints, and non-goals before planning."
