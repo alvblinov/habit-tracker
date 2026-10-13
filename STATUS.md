@@ -3,9 +3,11 @@
 ## Сейчас
 
 - Текущая фаза: итерации 001–004 завершены — приняты пользователем и влиты в `main`
-  (PR #1–#4). Публикация на GitHub Pages (по запросу пользователя 13.10.2026):
-  `base: './'`, workflow `.github/workflows/deploy.yml` (unit-тесты → сборка → Pages).
-  Адрес: https://alvblinov.github.io/habit-tracker/
+  (PR #1–#4). Сайт опубликован на GitHub Pages (по запросу пользователя 13.10.2026, PR #5):
+  https://alvblinov.github.io/habit-tracker/
+- Автопубликация (`.github/workflows/deploy.yml`, PR #6): в каждом PR в `main` — unit, e2e
+  (Chromium), сборка; при push в `main` — те же проверки, затем публикация. Сломанная версия
+  не публикуется. Первая публикация с e2e — успешно (13.10.2026, 79/79 e2e на GitHub).
 - Активный план: —.
   Выполнены: [plans/001-habit-tracker-v1.md](plans/001-habit-tracker-v1.md),
   [plans/002-reminders.md](plans/002-reminders.md),
@@ -59,11 +61,9 @@
 
 ## Git
 
-- Ветка: `main` = 785a366 (merge PR #4) + этот коммит STATUS.md
+- Ветка: `main` = e72cafb (merge PR #6) + этот коммит STATUS.md
 - Отправка на GitHub: https://github.com/alvblinov/habit-tracker;
-  PR [#1](https://github.com/alvblinov/habit-tracker/pull/1),
-  [#2](https://github.com/alvblinov/habit-tracker/pull/2),
-  [#3](https://github.com/alvblinov/habit-tracker/pull/3) и
-  [#4](https://github.com/alvblinov/habit-tracker/pull/4) влиты
-- Ветки итераций (`fix/cycle-02-audit`, `feature/reminders`, `feature/best-streak-edit`,
-  `feature/schedule-stats`) влиты и удалены (локально и на GitHub)
+  PR [#1](https://github.com/alvblinov/habit-tracker/pull/1)–[#4](https://github.com/alvblinov/habit-tracker/pull/4)
+  (итерации 001–004), [#5](https://github.com/alvblinov/habit-tracker/pull/5) (GitHub Pages) и
+  [#6](https://github.com/alvblinov/habit-tracker/pull/6) (e2e в автопубликации) влиты
+- Все влитые ветки удалены (локально и на GitHub); осталась только `main`
