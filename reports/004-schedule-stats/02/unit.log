@@ -1,0 +1,16 @@
+2026-10-13T17:57:35+03:00
+command: npm run test:unit
+
+> habit-tracker@0.1.0 test:unit
+> vitest run
+
+
+ RUN  v5.0.4 C:/Users/1/Documents/habit-tracker
+
+
+ Test Files  6 passed (6)
+      Tests  280 passed (280)
+   Start at  17:57:36
+   Duration  575ms (transform 32%, import 30%, tests 27%, worker 10%)
+
+exit code: 0
