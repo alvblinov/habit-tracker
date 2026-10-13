@@ -29,7 +29,7 @@ npx playwright install chromium
 | `npm run build` | сборка в `dist/` |
 | `npm run preview` | просмотр собранной версии |
 | `npm run test:unit` | unit-тесты логики (Vitest, без watch), `tests/unit/` |
-| `npm run test:e2e` | браузерные тесты (Playwright, Chromium), `tests/e2e/`; сам собирает и поднимает сайт на порту 4173 |
+| `npm run test:e2e` | браузерные тесты (Playwright, Chromium), `tests/e2e/`; сам собирает и поднимает свежий сайт на порту 4173 (уже запущенный сервер не переиспользуется, порт должен быть свободен) |
 
 ## Структура
 

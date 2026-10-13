@@ -1,0 +1,6 @@
+
+> habit-tracker@0.1.0 test:e2e
+> playwright test
+
+Error: Timed out waiting 60000ms from config.webServer.
+

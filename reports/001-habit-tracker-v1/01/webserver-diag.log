@@ -1,0 +1,20 @@
+
+> habit-tracker@0.1.0 build
+> vite build
+
+[36mvite v8.3.4 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 8 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                 1.42 kB │ gzip: 0.68 kB
+dist/assets/index-POLUfRPK.css  3.14 kB │ gzip: 1.11 kB
+dist/assets/index-WESRn-Lk.js   6.60 kB │ gzip: 2.69 kB
+
+[32m✓ built in 71ms[39m
+
+> habit-tracker@0.1.0 preview
+> vite preview --port 4173 --strictPort
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m4173[22m/[39m
+[2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m

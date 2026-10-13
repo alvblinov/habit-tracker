@@ -10,7 +10,7 @@ import {
   getStreak,
   getTodaySummary,
 } from './habits.js';
-import { loadState, saveState } from './storage.js';
+import { STORAGE_KEY, loadState, saveState } from './storage.js';
 
 const GRID_DAYS = 30;
 
@@ -24,6 +24,9 @@ function getStorage() {
 
 const storage = getStorage();
 let state = loadState(storage);
+// false, если последняя запись не удалась: тогда актуальна только копия в памяти,
+// и перечитывать хранилище нельзя, иначе изменения пропадут.
+let persisted = true;
 
 const form = document.querySelector('#add-form');
 const nameInput = document.querySelector('#habit-name');
@@ -63,8 +66,14 @@ function formatDate(key) {
 function commit(nextState) {
   if (nextState === state) return;
   state = nextState;
-  saveState(storage, state);
+  persisted = saveState(storage, state);
   render();
+}
+
+// Перечитать состояние из хранилища (его могла изменить другая вкладка).
+function reloadState() {
+  if (!storage || !persisted) return;
+  state = loadState(storage);
 }
 
 // --- Форма: варианты эмодзи строятся один раз из EMOJIS ---
@@ -211,8 +220,37 @@ function renderCard(habit, today) {
   return li;
 }
 
+// Фокус клавиатуры: список перестраивается целиком, поэтому запоминаем,
+// какая кнопка была в фокусе (data-testid + id привычки + data-date), и возвращаем его.
+function captureFocus() {
+  const active = document.activeElement;
+  if (!active || !listEl.contains(active)) return null;
+  const card = active.closest('[data-habit-id]');
+  if (!card || !active.dataset.testid) return null;
+  return {
+    testid: active.dataset.testid,
+    habitId: card.dataset.habitId,
+    date: active.dataset.date,
+  };
+}
+
+function restoreFocus(saved) {
+  if (!saved) return;
+  for (const card of listEl.querySelectorAll('[data-habit-id]')) {
+    if (card.dataset.habitId !== saved.habitId) continue;
+    for (const el of card.querySelectorAll(`[data-testid="${saved.testid}"]`)) {
+      if (el.dataset.date === saved.date) {
+        el.focus();
+        return;
+      }
+    }
+    return;
+  }
+}
+
 function render() {
   const today = getToday();
+  const savedFocus = captureFocus();
 
   const { done, total } = getTodaySummary(state, today);
   summaryEl.textContent = `Сегодня выполнено ${done} из ${total}`;
@@ -220,13 +258,26 @@ function render() {
   emptyEl.hidden = state.habits.length > 0;
 
   listEl.replaceChildren(...state.habits.map((habit) => renderCard(habit, today)));
+  restoreFocus(savedFocus);
 }
 
 buildEmojiOptions();
 render();
 
-// Если вкладка была открыта через полночь — пересчитать «сегодня».
-window.addEventListener('focus', render);
+// Другая вкладка изменила данные — перечитать их, чтобы не затереть устаревшей копией.
+window.addEventListener('storage', (event) => {
+  if (event.key !== STORAGE_KEY && event.key !== null) return;
+  reloadState();
+  render();
+});
+
+// При возврате во вкладку: перечитать данные и пересчитать «сегодня»
+// (вкладка могла быть открыта через полночь).
+function refresh() {
+  reloadState();
+  render();
+}
+window.addEventListener('focus', refresh);
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') render();
+  if (document.visibilityState === 'visible') refresh();
 });
