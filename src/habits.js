@@ -85,3 +85,36 @@ export function getTodaySummary(state, todayKey) {
   const done = state.habits.filter((h) => isDone(h, todayKey)).length;
   return { done, total };
 }
+
+/**
+ * Изменяет название и эмодзи привычки по правилам addHabit.
+ * id, done, createdAt и reminder не трогаются. Невалидное имя, неизвестный id
+ * или неизменённые значения → возвращается исходное состояние.
+ */
+export function updateHabit(state, id, { name, emoji } = {}) {
+  const habit = state.habits.find((h) => h.id === id);
+  if (!habit) return state;
+  const normalized = normalizeName(name);
+  if (normalized === null) return state;
+  const finalName = normalized.slice(0, MAX_NAME_LENGTH).trim();
+  const finalEmoji = normalizeEmoji(emoji);
+  if (finalName === habit.name && finalEmoji === habit.emoji) return state;
+  return {
+    ...state,
+    habits: state.habits.map((h) => (h.id === id ? { ...h, name: finalName, emoji: finalEmoji } : h)),
+  };
+}
+
+/** Рекорд: самая длинная цепочка подряд отмеченных дней за всё время. Пусто → 0. */
+export function getBestStreak(habit) {
+  const days = [...new Set(habit.done)].sort();
+  let best = 0;
+  let current = 0;
+  let prev = null;
+  for (const day of days) {
+    current = prev !== null && addDays(prev, 1) === day ? current + 1 : 1;
+    if (current > best) best = current;
+    prev = day;
+  }
+  return best;
+}
