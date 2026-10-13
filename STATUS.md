@@ -2,14 +2,14 @@
 
 ## Сейчас
 
-- Текущая фаза: итерация 003 «Лучшая серия и редактирование» — проверена и принята пользователем 13.10.2026,
-  PR в `main` (ветка `feature/best-streak-edit`). Итерации 001 и 002 приняты и влиты в `main` (PR #1, #2).
-- Активный план: [plans/003-best-streak-edit.md](plans/003-best-streak-edit.md) (утверждён 13.10.2026);
-  прогон `reports/003-best-streak-edit/01/` (PASS).
+- Текущая фаза: итерации 001–003 завершены — приняты пользователем и влиты в `main`
+  (PR #1, #2, #3). Новая итерация не начата.
+- Активный план: —.
   Выполнены: [plans/001-habit-tracker-v1.md](plans/001-habit-tracker-v1.md),
-  [plans/002-reminders.md](plans/002-reminders.md)
-- Последняя проверенная версия / коммит: 4083521 + незакоммиченные изменения итерации 003
-  (unit, e2e, сборка и аудит выполнены на этой версии файлов)
+  [plans/002-reminders.md](plans/002-reminders.md),
+  [plans/003-best-streak-edit.md](plans/003-best-streak-edit.md) (прогон `reports/003-best-streak-edit/01/` PASS)
+- Последняя проверенная версия / коммит: 88d01a7 — merge PR #3 (код = 0c78a37, на нём
+  выполнены unit, e2e, сборка, аудит и ручная приёмка)
 
 ## Выполнено
 
@@ -45,13 +45,14 @@
 
 ## Следующий шаг
 
-- Ревью и слияние PR итерации 003 в `main`.
+- Следующая итерация не согласована — выбрать функцию, провести интервью, план 004.
 
 ## Git
 
-- Ветка: `feature/best-streak-edit` (от `main` = 4083521)
-- Незакоммиченные изменения: нет (итерация 003 закоммичена в `feature/best-streak-edit`)
+- Ветка: `main` = 88d01a7 (merge PR #3) + этот коммит STATUS.md
 - Отправка на GitHub: https://github.com/alvblinov/habit-tracker;
-  PR [#1](https://github.com/alvblinov/habit-tracker/pull/1) и
-  [#2](https://github.com/alvblinov/habit-tracker/pull/2) влиты
-- Ветки `fix/cycle-02-audit` и `feature/reminders` влиты и удалены (локально и на GitHub)
+  PR [#1](https://github.com/alvblinov/habit-tracker/pull/1),
+  [#2](https://github.com/alvblinov/habit-tracker/pull/2) и
+  [#3](https://github.com/alvblinov/habit-tracker/pull/3) влиты
+- Ветки `fix/cycle-02-audit`, `feature/reminders` и `feature/best-streak-edit` влиты и удалены
+  (локально и на GitHub)
