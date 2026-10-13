@@ -2,13 +2,13 @@
 
 ## Сейчас
 
-- Текущая фаза: итерация 002 «Напоминания» — проверена и принята пользователем 13.10.2026, PR в `main`
-  (ветка `feature/reminders`). Итерация 001 принята пользователем 13.10.2026.
-- Активный план: [plans/002-reminders.md](plans/002-reminders.md) (утверждён 13.10.2026);
-  прогоны `reports/002-reminders/01/` (FIX) и `02/` (PASS).
-  Выполнен: [plans/001-habit-tracker-v1.md](plans/001-habit-tracker-v1.md)
-- Последняя проверенная версия / коммит: 8ba7c2b + незакоммиченные изменения итерации 002
-  (unit, e2e, сборка и аудит выполнены на этой версии файлов)
+- Текущая фаза: итерация 002 «Напоминания» завершена — принята пользователем 13.10.2026,
+  влита в `main` (PR #2). Итерация 001 принята и влита ранее (PR #1).
+- Активный план: — (следующая итерация не начата).
+  Выполнены: [plans/001-habit-tracker-v1.md](plans/001-habit-tracker-v1.md),
+  [plans/002-reminders.md](plans/002-reminders.md) (прогоны `reports/002-reminders/01/` FIX, `02/` PASS)
+- Последняя проверенная версия / коммит: 6d153c3 — merge PR #2 (код = 985394f, на нём
+  выполнены unit, e2e, сборка, аудит и ручная приёмка)
 
 ## Выполнено
 
@@ -41,12 +41,13 @@
 
 ## Следующий шаг
 
-- Ревью и слияние PR итерации 002 в `main`.
-- Затем (GOAL.md): лучшая серия и редактирование названия/эмодзи.
+- Итерация 003 (GOAL.md): лучшая серия и редактирование названия/эмодзи —
+  интервью, критерии, план 003.
 
 ## Git
 
-- Ветка: `feature/reminders` (от `main` = 8ba7c2b)
-- Незакоммиченные изменения: нет (итерация 002 закоммичена в `feature/reminders`)
-- Отправка на GitHub: https://github.com/alvblinov/habit-tracker, `main` = 8ba7c2b;
-  PR [#1](https://github.com/alvblinov/habit-tracker/pull/1) влит
+- Ветка: `main` = 6d153c3 (merge PR #2) + этот коммит STATUS.md
+- Отправка на GitHub: https://github.com/alvblinov/habit-tracker;
+  PR [#1](https://github.com/alvblinov/habit-tracker/pull/1) и
+  [#2](https://github.com/alvblinov/habit-tracker/pull/2) влиты
+- Ветки `fix/cycle-02-audit` и `feature/reminders` влиты, не удалены
