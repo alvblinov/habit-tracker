@@ -35,9 +35,15 @@ npx playwright install chromium
 
 Сайт: https://alvblinov.github.io/habit-tracker/
 
-Workflow `.github/workflows/deploy.yml` при каждом push в `main` выполняет
-`npm ci`, `npm run test:unit`, `npm run build` и публикует `dist/` на GitHub Pages
-(в настройках репозитория: Pages → Source: GitHub Actions). Запустить вручную —
+Workflow `.github/workflows/deploy.yml` выполняет `npm ci`, `npm run test:unit`,
+`npm run test:e2e` (Chromium) и `npm run build`:
+
+- в каждом PR в `main` — только проверки (результат виден на странице PR);
+- при push в `main` — проверки, затем публикация `dist/` на GitHub Pages.
+  Если хоть один тест упал, сайт не обновляется; отчёт Playwright сохраняется
+  в артефактах запуска (`playwright-report`).
+
+В настройках репозитория: Pages → Source: GitHub Actions. Запустить вручную —
 вкладка Actions → «Deploy to GitHub Pages» → Run workflow. Сборка использует
 относительные пути (`base: './'` в `vite.config.js`), поэтому работает и в подпапке.
 
