@@ -60,13 +60,35 @@ test.describe('добавление привычки (AC-1, AC-2)', () => {
     await expect(cardByName(page, 'Вторая').getByTestId('habit-emoji')).toHaveText('⭐');
   });
 
-  test('в наборе ровно 12 эмодзи из требований', async ({ page }) => {
+  test('в наборе ровно 12 эмодзи из требований, включая ✍️', async ({ page }) => {
     await openAt(page);
     const options = page.getByTestId('emoji-option');
     await expect(options).toHaveCount(12);
-    for (const e of ['💧', '📚', '🏃', '🧘', '🥗', '😴', '💊', '🎸', '🧹', '🌱', '⭐']) {
-      await expect(options.filter({ hasText: e })).toHaveCount(1);
+    // Полный набор из GOAL.md: 💧📚🏃🧘🥗😴✍️💊🎸🧹🌱⭐ (✍️ = U+270D U+FE0F)
+    const expected = ['💧', '📚', '🏃', '🧘', '🥗', '😴', '✍️', '💊', '🎸', '🧹', '🌱', '⭐'];
+    const shown = await options.evaluateAll((els) =>
+      els.map((el) => ({
+        data: el.getAttribute('data-emoji'),
+        value: el.querySelector('input[name="emoji"]')?.value ?? null,
+        face: el.textContent.trim(),
+      })),
+    );
+    expect(shown.map((o) => o.data).sort()).toEqual([...expected].sort());
+    // Значение radio и видимый символ совпадают с data-emoji
+    for (const o of shown) {
+      expect(o.value).toBe(o.data);
+      expect(o.face).toBe(o.data);
     }
+  });
+
+  test('привычку можно добавить с эмодзи ✍️', async ({ page }) => {
+    await openAt(page);
+    await page.getByTestId('habit-name-input').fill('Дневник');
+    await page.locator('[data-testid="emoji-option"][data-emoji="✍️"]').click();
+    await page.getByTestId('add-habit').click();
+    await expect(cardByName(page, 'Дневник').getByTestId('habit-emoji')).toHaveText('✍️');
+    await page.reload();
+    await expect(cardByName(page, 'Дневник').getByTestId('habit-emoji')).toHaveText('✍️');
   });
 
   test('пустое название и только пробелы не добавляются', async ({ page }) => {
@@ -360,5 +382,133 @@ test.describe('сохранение после перезагрузки (AC-8)',
     await expect(cardByName(page, 'После сбоя')).toHaveCount(1);
     await page.reload();
     await expect(cardByName(page, 'После сбоя')).toHaveCount(1);
+  });
+});
+
+test.describe('две вкладки (регрессия: замечание 1 аудита 01)', () => {
+  test('изменения из одной вкладки видны в другой без reload и не теряются при записи', async ({ context }) => {
+    // Управляемые часы на весь контекст: обе вкладки живут в одном «сегодня».
+    await context.clock.setFixedTime(new Date(`${TODAY}T12:00:00+03:00`));
+    const a = await context.newPage();
+    const b = await context.newPage();
+    await a.goto('/');
+    await b.goto('/');
+    await expect(a.getByTestId('empty-state')).toBeVisible();
+    await expect(b.getByTestId('empty-state')).toBeVisible();
+
+    // A добавляет привычку → B видит её без перезагрузки (событие storage)
+    await addHabit(a, 'Вода', '💧');
+    await expect(cardByName(a, 'Вода')).toHaveCount(1);
+    await expect(cardByName(b, 'Вода')).toHaveCount(1);
+    await expect(cardByName(b, 'Вода').getByTestId('habit-emoji')).toHaveText('💧');
+    await expect(b.getByTestId('empty-state')).toBeHidden();
+    await expect(b.getByTestId('today-summary')).toHaveText('Сегодня выполнено 0 из 1');
+
+    // B отмечает привычку (сегодня и вчера) → A видит отметки без перезагрузки
+    const bWater = cardByName(b, 'Вода');
+    await bWater.getByTestId('toggle-today').click();
+    await cell(bWater, '2026-10-12').click();
+    await expect(bWater.getByTestId('habit-streak')).toHaveText('🔥 2 дня подряд');
+    const aWater = cardByName(a, 'Вода');
+    await expect(aWater.getByTestId('toggle-today')).toHaveAttribute('aria-pressed', 'true');
+    await expect(aWater.getByTestId('habit-streak')).toHaveText('🔥 2 дня подряд');
+
+    // A снова пишет: её запись не должна затереть отметки, сделанные в B
+    await addHabit(a, 'Сон', '😴');
+    await expect(cardByName(b, 'Сон')).toHaveCount(1);
+
+    // После реальной перезагрузки A всё на месте: обе привычки и отметки из B
+    await a.reload();
+    await expect(cards(a)).toHaveCount(2);
+    expect(await a.getByTestId('habit-name').allTextContents()).toEqual(['Вода', 'Сон']);
+    const w = cardByName(a, 'Вода');
+    await expect(w.getByTestId('toggle-today')).toHaveAttribute('aria-pressed', 'true');
+    const done = await w
+      .locator('[data-testid="day-cell"][aria-pressed="true"]')
+      .evaluateAll((els) => els.map((el) => el.getAttribute('data-date')));
+    expect(done.sort()).toEqual(['2026-10-12', TODAY]);
+    await expect(w.getByTestId('habit-streak')).toHaveText('🔥 2 дня подряд');
+    await expect(a.getByTestId('today-summary')).toHaveText('Сегодня выполнено 1 из 2');
+
+    // И B после перезагрузки видит то же самое
+    await b.reload();
+    await expect(cards(b)).toHaveCount(2);
+    await expect(cardByName(b, 'Вода').getByTestId('toggle-today')).toHaveAttribute('aria-pressed', 'true');
+    await expect(cardByName(b, 'Сон')).toHaveCount(1);
+  });
+
+  test('удаление в одной вкладке не возвращается записью из другой', async ({ context }) => {
+    await context.clock.setFixedTime(new Date(`${TODAY}T12:00:00+03:00`));
+    const a = await context.newPage();
+    const b = await context.newPage();
+    await a.goto('/');
+    await b.goto('/');
+
+    await addHabit(a, 'Удалить');
+    await addHabit(a, 'Оставить');
+    await expect(cards(b)).toHaveCount(2);
+
+    a.once('dialog', (d) => d.accept());
+    await cardByName(a, 'Удалить').getByTestId('delete-habit').click();
+    await expect(cardByName(a, 'Удалить')).toHaveCount(0);
+    await expect(cardByName(b, 'Удалить')).toHaveCount(0);
+
+    // B отмечает оставшуюся — удалённая не должна воскреснуть
+    await cardByName(b, 'Оставить').getByTestId('toggle-today').click();
+    await a.reload();
+    await expect(cards(a)).toHaveCount(1);
+    await expect(cardByName(a, 'Оставить').getByTestId('toggle-today')).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+test.describe('фокус клавиатуры после действия (регрессия: замечание 5 аудита 01)', () => {
+  test('после Enter/Space на «Сегодня» фокус остаётся на кнопке «Сегодня» той же привычки', async ({ page }) => {
+    await openAt(page);
+    await addHabit(page, 'Первая');
+    await addHabit(page, 'Вторая');
+    const card = cardByName(page, 'Вторая');
+    const btn = card.getByTestId('toggle-today');
+
+    await btn.focus();
+    await page.keyboard.press('Enter');
+    await expect(btn).toHaveAttribute('aria-pressed', 'true');
+    await expect(btn).toBeFocused();
+    await expect(cardByName(page, 'Первая').getByTestId('toggle-today')).toHaveAttribute('aria-pressed', 'false');
+
+    // Повторно с клавиатуры, не трогая фокус: Space снимает отметку, фокус на месте
+    await page.keyboard.press('Space');
+    await expect(btn).toHaveAttribute('aria-pressed', 'false');
+    await expect(btn).toBeFocused();
+
+    // И ещё раз Enter — снова отмечает: значит, фокус действительно на этой кнопке
+    await page.keyboard.press('Enter');
+    await expect(btn).toHaveAttribute('aria-pressed', 'true');
+    await expect(btn).toBeFocused();
+    await expect(page.getByTestId('today-summary')).toHaveText('Сегодня выполнено 1 из 2');
+  });
+
+  test('после Enter/Space на клетке сетки фокус остаётся на той же клетке той же привычки', async ({ page }) => {
+    await openAt(page);
+    await addHabit(page, 'Первая');
+    await addHabit(page, 'Вторая');
+    const card = cardByName(page, 'Первая');
+    const day = cell(card, '2026-10-12');
+
+    await day.focus();
+    await page.keyboard.press('Space');
+    await expect(day).toHaveAttribute('aria-pressed', 'true');
+    await expect(day).toBeFocused();
+    await expect(card.getByTestId('habit-streak')).toHaveText('🔥 1 день подряд');
+    // У другой привычки та же дата не отмечена и не в фокусе
+    await expect(cell(cardByName(page, 'Вторая'), '2026-10-12')).toHaveAttribute('aria-pressed', 'false');
+
+    await page.keyboard.press('Enter');
+    await expect(day).toHaveAttribute('aria-pressed', 'false');
+    await expect(day).toBeFocused();
+    await expect(card.getByTestId('habit-streak')).toHaveText('🔥 0 дней подряд');
+
+    // Tab после перерисовки уводит на следующую клетку (фокус не сбросился на body)
+    await page.keyboard.press('Tab');
+    await expect(cell(card, TODAY)).toBeFocused();
   });
 });

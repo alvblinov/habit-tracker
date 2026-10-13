@@ -1,0 +1,9 @@
+2026-10-13 ~11:12 MSK — диагностика координатора (вне песочницы, с разрешения пользователя)
+npm run test:e2e → "Error: Timed out waiting 60000ms from config.webServer." (exit 1), см. e2e-attempt1.log
+Ручной запуск: npx vite preview --port 4173 --strictPort
+  netstat: TCP [::1]:4173 LISTENING  (слушает только IPv6 loopback)
+  Invoke-WebRequest http://localhost:4173/ → отказ в подключении (localhost → 127.0.0.1)
+  Invoke-WebRequest http://[::1]:4173/    → 200
+Вывод: причина таймаута — несовпадение адресов (Vite на ::1, проверка Playwright на 127.0.0.1),
+а не только песочница. Нужно явно задать host 127.0.0.1 для preview и baseURL/url в playwright.config.js.
+Диагностический сервер остановлен.
