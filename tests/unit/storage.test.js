@@ -179,3 +179,59 @@ describe('напоминания в хранилище (AC-15)', () => {
     expect(JSON.parse(storage.getItem('habit-tracker:v1')).version).toBe(1);
   });
 });
+
+// Итерация 004 (AC-23, AC-31): расписание по дням недели в хранилище.
+describe('расписание в хранилище (AC-23)', () => {
+  const ALL7 = [1, 2, 3, 4, 5, 6, 7];
+  const legacy = (over = {}) => ({
+    id: 'old',
+    name: 'Читать',
+    emoji: '📚',
+    createdAt: '2026-09-01',
+    done: ['2026-10-12', TODAY],
+    reminder: null,
+    ...over,
+  });
+  const store = (habits) => createStorage({ [STORAGE_KEY]: JSON.stringify({ version: 1, habits }) });
+
+  it('старые данные без поля days открываются как «каждый день», отметки целы', () => {
+    const state = loadState(store([legacy()]));
+    expect(state.habits).toHaveLength(1);
+    expect(state.habits[0].days).toEqual(ALL7);
+    expect(state.habits[0].done).toEqual(['2026-10-12', TODAY]);
+  });
+
+  it.each([
+    ['null', null],
+    ['строка', 'пн, ср, пт'],
+    ['число', 3],
+    ['объект', { mon: true }],
+    ['пустой массив', []],
+    ['только недопустимые значения', [0, 8, 99]],
+  ])('битые days (%s) → все 7 дней, привычка цела', (_title, days) => {
+    const state = loadState(store([legacy({ days }), legacy({ id: 'second', name: 'Бег', days: [1, 3, 5] })]));
+    expect(state.habits.map((h) => h.id)).toEqual(['old', 'second']);
+    expect(state.habits[0].days).toEqual(ALL7);
+    expect(state.habits[0].done).toEqual(['2026-10-12', TODAY]);
+    expect(state.habits[1].days).toEqual([1, 3, 5]);
+  });
+
+  it('неотсортированные дни с повторами приводятся к порядку недели', () => {
+    const state = loadState(store([legacy({ days: [5, 1, 3, 1] })]));
+    expect(state.habits[0].days).toEqual([1, 3, 5]);
+  });
+
+  it('save → load сохраняет расписание; ключ и версия прежние', () => {
+    const storage = createStorage();
+    const state = sampleState();
+    state.habits[0] = { ...state.habits[0], days: [1, 3, 5] };
+    saveState(storage, state);
+    const loaded = loadState(storage);
+    expect(loaded.habits[0].days).toEqual([1, 3, 5]);
+    expect(loaded.habits[1].days).toEqual(ALL7);
+    expect([...loaded.habits[0].done].sort()).toEqual(['2026-10-12', TODAY]);
+    const raw = JSON.parse(storage.getItem('habit-tracker:v1'));
+    expect(raw.version).toBe(1);
+    expect(raw.habits[0].days).toEqual([1, 3, 5]);
+  });
+});

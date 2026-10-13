@@ -342,3 +342,75 @@ describe('findDueReminders — без догоняющих и без повто�
     expect(state).toEqual(copy);
   });
 });
+
+// Итерация 004 (AC-27): напоминания только в дни по расписанию.
+// 13.10.2026 — вторник, 14.10.2026 — среда.
+describe('findDueReminders — расписание по дням недели (AC-27)', () => {
+  const MWF = [1, 3, 5];
+  const withDays = (id, reminder, days, done = []) => ({ ...habit(id, reminder, done), days });
+
+  describe('«Каждые N»', () => {
+    it('в выходной день привычки (вт) напоминания нет', () => {
+      const state = stateWith(withDays('a', intervalReminder(), MWF));
+      expect(findDueReminders(state, at(13, 11, 14), at(13, 11, 15))).toEqual([]);
+      expect(findDueReminders(state, at(13, 12, 14), at(13, 12, 15))).toEqual([]);
+    });
+
+    it('в день по расписанию (ср) напоминание приходит', () => {
+      const state = stateWith(withDays('a', intervalReminder(), MWF));
+      expect(findDueReminders(state, at(14, 11, 14), at(14, 11, 15))).toEqual([{ habitId: 'a', at: at(14, 11, 15) }]);
+    });
+
+    it('сегодня в расписании (только вт) — приходит', () => {
+      const state = stateWith(withDays('a', intervalReminder(), [2]));
+      expect(findDueReminders(state, at(13, 11, 14), at(13, 11, 15))).toEqual([{ habitId: 'a', at: at(13, 11, 15) }]);
+    });
+
+    it('в день по расписанию отметка по-прежнему не отменяет напоминание', () => {
+      const state = stateWith(withDays('a', intervalReminder(), MWF, ['2026-10-14']));
+      expect(findDueReminders(state, at(14, 11, 14), at(14, 11, 15))).toHaveLength(1);
+    });
+
+    it('после полуночи день недели — уже новый', () => {
+      const r = intervalReminder({ start: '00:00', end: '23:59', anchor: at(13, 23, 30) });
+      expect(findDueReminders(stateWith(withDays('a', r, [3])), at(14, 0, 29), at(14, 0, 30)))
+        .toEqual([{ habitId: 'a', at: at(14, 0, 30) }]);
+      expect(findDueReminders(stateWith(withDays('a', r, [2])), at(14, 0, 29), at(14, 0, 30))).toEqual([]);
+    });
+  });
+
+  describe('«В определённое время»', () => {
+    const times = { mode: 'times', times: ['08:00', '20:00'] };
+
+    it('в выходной день привычки не приходит, даже если не отмечено', () => {
+      const state = stateWith(withDays('a', times, MWF));
+      expect(findDueReminders(state, at(13, 7, 59), at(13, 8, 0))).toEqual([]);
+      expect(findDueReminders(state, at(13, 19, 59), at(13, 20, 0))).toEqual([]);
+    });
+
+    it('в день по расписанию приходит, если не отмечено; после отметки — нет', () => {
+      expect(findDueReminders(stateWith(withDays('a', times, MWF)), at(14, 7, 59), at(14, 8, 0)))
+        .toEqual([{ habitId: 'a', at: at(14, 8, 0) }]);
+      expect(findDueReminders(stateWith(withDays('a', times, MWF, ['2026-10-14'])), at(14, 7, 59), at(14, 8, 0)))
+        .toEqual([]);
+    });
+
+    it('00:00 относится к новому дню: расписание проверяется по нему', () => {
+      const midnight = { mode: 'times', times: ['00:00'] };
+      expect(findDueReminders(stateWith(withDays('a', midnight, [3])), at(13, 23, 58), at(14, 0, 1)))
+        .toEqual([{ habitId: 'a', at: at(14, 0, 0) }]);
+      expect(findDueReminders(stateWith(withDays('a', midnight, [2])), at(13, 23, 58), at(14, 0, 1))).toEqual([]);
+    });
+  });
+
+  it('несколько привычек: срабатывают только назначенные на сегодня; без поля days — каждый день', () => {
+    const times = { mode: 'times', times: ['08:00'] };
+    const state = stateWith(
+      withDays('off', times, MWF),
+      withDays('on', times, [2, 4]),
+      habit('legacy', times),
+    );
+    const due = findDueReminders(state, at(13, 7, 59), at(13, 8, 0));
+    expect(due.map((d) => d.habitId).sort()).toEqual(['legacy', 'on']);
+  });
+});

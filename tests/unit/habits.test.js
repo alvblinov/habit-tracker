@@ -14,6 +14,7 @@ import {
   getBestStreak,
   updateHabit,
 } from '../../src/habits.js';
+import { describeDays } from '../../src/schedule.js';
 
 const TODAY = '2026-10-13';
 
@@ -373,6 +374,198 @@ describe('updateHabit (AC-19, AC-20, AC-21)', () => {
   it('серия и рекорд после переименования не меняются', () => {
     const s0 = stateWith(original());
     const s1 = updateHabit(s0, 'h1', { name: 'Новое', emoji: '💧' });
+    expect(getStreak(s1.habits[0], TODAY)).toBe(2);
+    expect(getBestStreak(s1.habits[0])).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Итерация 004: расписание по дням недели (AC-23, AC-24, AC-26, AC-31).
+// 2026-10-12 — понедельник, 2026-10-13 — вторник, 2026-10-17 — суббота.
+// ---------------------------------------------------------------------------
+
+const MWF = [1, 3, 5];
+const ALL7 = [1, 2, 3, 4, 5, 6, 7];
+
+function scheduledHabit(done, days = MWF, id = 'h1') {
+  return { id, name: 'Спортзал', emoji: '🏃', createdAt: '2026-09-01', done, reminder: null, days };
+}
+
+describe('addHabit: расписание по умолчанию (AC-23)', () => {
+  it('новая привычка назначена на все 7 дней', () => {
+    const s = addHabit(createEmptyState(), { name: 'Вода' }, { id: 'a', todayKey: TODAY });
+    expect(s.habits[0].days).toEqual(ALL7);
+  });
+});
+
+describe('getStreak с расписанием (AC-24)', () => {
+  const SAT = '2026-10-17';
+
+  it('«пн, ср, пт», отмечены пн, ср, пт, сегодня суббота → 3', () => {
+    expect(getStreak(scheduledHabit(['2026-10-12', '2026-10-14', '2026-10-16']), SAT)).toBe(3);
+  });
+
+  it('не отмечена среда → серия 1 (только пт)', () => {
+    expect(getStreak(scheduledHabit(['2026-10-12', '2026-10-16']), SAT)).toBe(1);
+  });
+
+  it('отметка в выходной (вс) добавляет +1', () => {
+    expect(getStreak(scheduledHabit(['2026-10-11', '2026-10-12', '2026-10-14', '2026-10-16']), SAT)).toBe(4);
+  });
+
+  it('отметка сегодня в выходной (сб) добавляет +1', () => {
+    expect(getStreak(scheduledHabit(['2026-10-12', '2026-10-14', '2026-10-16', SAT]), SAT)).toBe(4);
+  });
+
+  it('выходные без отметки серию не рвут: пт → (сб, вс пропущены) → пн, ср, пт', () => {
+    // Вт 13 и чт 15 — тоже выходные без отметки; ср 07.10 не отмечена — на ней серия заканчивается.
+    expect(getStreak(scheduledHabit(['2026-10-09', '2026-10-12', '2026-10-14', '2026-10-16']), SAT)).toBe(4);
+  });
+
+  it('сегодня день по расписанию и не отмечено — серия не прерывается', () => {
+    expect(getStreak(scheduledHabit(['2026-10-12', '2026-10-14']), '2026-10-16')).toBe(2);
+  });
+
+  it('сегодня пн не отмечен: выходные перед ним пропускаются до пятницы', () => {
+    expect(getStreak(scheduledHabit(['2026-10-14', '2026-10-16']), '2026-10-19')).toBe(2);
+  });
+
+  it('пропущенный прошедший день по расписанию обнуляет серию', () => {
+    // Сегодня чт 15 (выходной), ср 14 не отмечена.
+    expect(getStreak(scheduledHabit(['2026-10-12']), '2026-10-15')).toBe(0);
+    // Отмечена только прошлая пятница, пн 12 пропущен.
+    expect(getStreak(scheduledHabit(['2026-10-09']), SAT)).toBe(0);
+  });
+
+  it('только воскресенья: неделя между отметками не рвёт серию', () => {
+    expect(getStreak(scheduledHabit(['2026-09-27', '2026-10-04', '2026-10-11'], [7]), TODAY)).toBe(3);
+  });
+
+  it('через смену месяца: пт 30.10 → пн 02.11, сегодня вт 03.11', () => {
+    expect(getStreak(scheduledHabit(['2026-10-30', '2026-11-02']), '2026-11-03')).toBe(2);
+  });
+
+  it('без отметок — 0', () => {
+    expect(getStreak(scheduledHabit([]), SAT)).toBe(0);
+  });
+
+  it('явное «каждый день» (все 7 дней) — прежние правила AC-4', () => {
+    expect(getStreak(scheduledHabit(['2026-10-11', '2026-10-12'], ALL7), TODAY)).toBe(2);
+    expect(getStreak(scheduledHabit(['2026-10-10', '2026-10-11'], ALL7), TODAY)).toBe(0);
+    expect(getStreak(scheduledHabit(['2026-10-11', '2026-10-12', TODAY], ALL7), TODAY)).toBe(3);
+  });
+});
+
+describe('getBestStreak с расписанием (AC-24)', () => {
+  it('«пн, ср, пт»: пропуск среды разрывает цепочку → рекорд 4', () => {
+    const done = ['2026-10-05', '2026-10-07', '2026-10-09', '2026-10-12', '2026-10-16'];
+    expect(getBestStreak(scheduledHabit(done))).toBe(4);
+  });
+
+  it('отметка в выходной добавляет +1 к цепочке', () => {
+    expect(getBestStreak(scheduledHabit(['2026-10-09', '2026-10-10', '2026-10-12']))).toBe(3);
+  });
+
+  it('пропущенный день по расписанию рвёт цепочку', () => {
+    expect(getBestStreak(scheduledHabit(['2026-10-05', '2026-10-09', '2026-10-12']))).toBe(2);
+  });
+
+  it('только воскресенья: недели между отметками не рвут цепочку', () => {
+    expect(getBestStreak(scheduledHabit(['2026-09-27', '2026-10-04', '2026-10-11'], [7]))).toBe(3);
+  });
+
+  it('явное «каждый день» — пропуск дня рвёт цепочку, как раньше', () => {
+    expect(getBestStreak(scheduledHabit(['2026-10-01', '2026-10-03'], ALL7))).toBe(1);
+    expect(getBestStreak(scheduledHabit(['2026-10-01', '2026-10-02', '2026-10-03'], ALL7))).toBe(3);
+  });
+});
+
+describe('getTodaySummary с расписанием (AC-26)', () => {
+  it('неотмеченная привычка с выходным сегодня не входит в Y; отмеченная в выходной — входит в X и Y', () => {
+    // Сегодня вторник.
+    const state = stateWith(
+      scheduledHabit([], MWF, 'off-unmarked'),
+      scheduledHabit([TODAY], MWF, 'off-marked'),
+      scheduledHabit([], ALL7, 'daily'),
+      scheduledHabit([], [2], 'tue-only'),
+    );
+    expect(getTodaySummary(state, TODAY)).toEqual({ done: 1, total: 3 });
+  });
+
+  it('все привычки сегодня выходные и не отмечены — 0 из 0', () => {
+    const state = stateWith(scheduledHabit([], MWF, 'a'), scheduledHabit([], [7], 'b'));
+    expect(getTodaySummary(state, TODAY)).toEqual({ done: 0, total: 0 });
+  });
+
+  it('отметка и снятие отметки в выходной меняют и X, и Y', () => {
+    let s = stateWith(scheduledHabit([], MWF, 'off'), scheduledHabit([], ALL7, 'daily'));
+    expect(getTodaySummary(s, TODAY)).toEqual({ done: 0, total: 1 });
+    s = toggleDay(s, 'off', TODAY, TODAY);
+    expect(getTodaySummary(s, TODAY)).toEqual({ done: 1, total: 2 });
+    s = toggleDay(s, 'off', TODAY, TODAY);
+    expect(getTodaySummary(s, TODAY)).toEqual({ done: 0, total: 1 });
+  });
+
+  it('привычка без поля days (старые данные) считается назначенной на сегодня', () => {
+    expect(getTodaySummary(stateWith(habitWith([])), TODAY)).toEqual({ done: 0, total: 1 });
+  });
+});
+
+describe('updateHabit с расписанием (AC-23)', () => {
+  const daily = () => scheduledHabit(['2026-10-09', '2026-10-12'], ALL7);
+
+  it('задаёт дни «пн, ср, пт», не трогая название, эмодзи и отметки', () => {
+    const s1 = updateHabit(stateWith(daily()), 'h1', { name: 'Спортзал', emoji: '🏃', days: MWF });
+    expect(s1.habits[0]).toMatchObject({
+      id: 'h1',
+      name: 'Спортзал',
+      emoji: '🏃',
+      createdAt: '2026-09-01',
+      done: ['2026-10-09', '2026-10-12'],
+      days: [1, 3, 5],
+    });
+    expect(describeDays(s1.habits[0].days)).toBe('пн, ср, пт');
+  });
+
+  it('дни сохраняются отсортированными', () => {
+    const s1 = updateHabit(stateWith(daily()), 'h1', { name: 'Спортзал', emoji: '🏃', days: [5, 3, 1] });
+    expect(s1.habits[0].days).toEqual([1, 3, 5]);
+  });
+
+  it('пустой набор дней не сохраняется как пустое расписание', () => {
+    const s1 = updateHabit(stateWith(scheduledHabit([], MWF)), 'h1', { name: 'Спортзал', emoji: '🏃', days: [] });
+    expect(s1.habits[0].days.length).toBeGreaterThan(0);
+    expect(s1.habits[0].days).toEqual(ALL7);
+  });
+
+  it('вернуть все дни → «каждый день», подпись пустая', () => {
+    const s1 = updateHabit(stateWith(scheduledHabit([], MWF)), 'h1', { name: 'Спортзал', emoji: '🏃', days: ALL7 });
+    expect(s1.habits[0].days).toEqual(ALL7);
+    expect(describeDays(s1.habits[0].days)).toBe('');
+  });
+
+  it('те же дни (в другом порядке), название и эмодзи — то же состояние', () => {
+    const s0 = stateWith(scheduledHabit([], MWF));
+    expect(updateHabit(s0, 'h1', { name: 'Спортзал', emoji: '🏃', days: [5, 1, 3] })).toBe(s0);
+  });
+
+  it('без поля days расписание не меняется', () => {
+    const s1 = updateHabit(stateWith(scheduledHabit([], MWF)), 'h1', { name: 'Зал', emoji: '🏃' });
+    expect(s1.habits[0].name).toBe('Зал');
+    expect(s1.habits[0].days).toEqual([1, 3, 5]);
+  });
+
+  it('пустое название не сохраняется — вместе с ним не меняются и дни', () => {
+    const s0 = stateWith(daily());
+    expect(updateHabit(s0, 'h1', { name: '  ', emoji: '🏃', days: MWF })).toBe(s0);
+  });
+
+  it('смена расписания пересчитывает серию и рекорд', () => {
+    const s0 = stateWith(daily());
+    // «Каждый день»: вс 11 не отмечено → серия только пн 12.
+    expect(getStreak(s0.habits[0], TODAY)).toBe(1);
+    // «пн, ср, пт»: пт 9 → (сб, вс — выходные) → пн 12.
+    const s1 = updateHabit(s0, 'h1', { name: 'Спортзал', emoji: '🏃', days: MWF });
     expect(getStreak(s1.habits[0], TODAY)).toBe(2);
     expect(getBestStreak(s1.habits[0])).toBe(2);
   });

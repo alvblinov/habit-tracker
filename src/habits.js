@@ -1,6 +1,7 @@
 // Чистая логика привычек: без DOM и без new Date(). «Сегодня» передаётся параметром.
 
 import { addDays } from './dates.js';
+import { ALL_DAYS, normalizeDays, isScheduled, weekdayOf } from './schedule.js';
 
 export const EMOJIS = ['💧', '📚', '🏃', '🧘', '🥗', '😴', '✍️', '💊', '🎸', '🧹', '🌱', '⭐'];
 export const DEFAULT_EMOJI = '⭐';
@@ -37,6 +38,7 @@ export function addHabit(state, { name, emoji } = {}, { id, todayKey } = {}) {
     createdAt: todayKey,
     done: [],
     reminder: null,
+    days: [...ALL_DAYS],
   };
   return { ...state, habits: [...state.habits, habit] };
 }
@@ -65,56 +67,95 @@ export function isDone(habit, key) {
   return habit.done.includes(key);
 }
 
+// Есть ли среди дней строго между from и to (from < to) день по расписанию.
+// Цикл не длиннее 7 шагов: любые 7 дней подряд содержат каждый день недели,
+// а в расписании хотя бы один день.
+function gapHasScheduledDay(from, to, scheduled) {
+  for (let day = addDays(from, 1); day < to; day = addDays(day, 1)) {
+    if (scheduled.has(weekdayOf(day))) return true;
+  }
+  return false;
+}
+
 /**
- * Серия: подряд отмеченные дни, заканчивающиеся сегодня
- * (если сегодня не отмечено — заканчивающиеся вчера).
+ * Серия по расписанию (AC-4, AC-24): идём назад от сегодня. Отмеченный день — +1;
+ * день по расписанию без отметки прерывает серию; выходной без отметки пропускается;
+ * сегодня без отметки серию не прерывает. Для «каждый день» — подряд отмеченные дни,
+ * заканчивающиеся сегодня (если сегодня не отмечено — вчера).
  */
 export function getStreak(habit, todayKey) {
-  const done = new Set(habit.done);
-  let day = done.has(todayKey) ? todayKey : addDays(todayKey, -1);
+  const scheduled = new Set(normalizeDays(habit.days));
+  const marks = [...new Set(habit.done)].filter((k) => k <= todayKey).sort().reverse();
   let streak = 0;
-  while (done.has(day)) {
+  let prev = todayKey;
+  for (const mark of marks) {
+    if (mark === todayKey) {
+      streak += 1;
+      continue;
+    }
+    if (gapHasScheduledDay(mark, prev, scheduled)) break;
     streak += 1;
-    day = addDays(day, -1);
+    prev = mark;
   }
   return streak;
 }
 
+/**
+ * Сводка дня (AC-26): total — привычки, назначенные на сегодня, плюс отмеченные
+ * сегодня в свой выходной; done — отмеченные сегодня.
+ */
 export function getTodaySummary(state, todayKey) {
-  const total = state.habits.length;
+  const total = state.habits.filter((h) => isDone(h, todayKey) || isScheduled(h, todayKey)).length;
   const done = state.habits.filter((h) => isDone(h, todayKey)).length;
   return { done, total };
 }
 
+function sameDays(a, b) {
+  return a.length === b.length && a.every((d, i) => d === b[i]);
+}
+
 /**
- * Изменяет название и эмодзи привычки по правилам addHabit.
+ * Изменяет название, эмодзи и (если передано) расписание привычки по правилам addHabit.
+ * days нормализуется через normalizeDays (пустой/битый набор → все 7 дней).
  * id, done, createdAt и reminder не трогаются. Невалидное имя, неизвестный id
  * или неизменённые значения → возвращается исходное состояние.
  */
-export function updateHabit(state, id, { name, emoji } = {}) {
+export function updateHabit(state, id, { name, emoji, days } = {}) {
   const habit = state.habits.find((h) => h.id === id);
   if (!habit) return state;
   const normalized = normalizeName(name);
   if (normalized === null) return state;
   const finalName = normalized.slice(0, MAX_NAME_LENGTH).trim();
   const finalEmoji = normalizeEmoji(emoji);
-  if (finalName === habit.name && finalEmoji === habit.emoji) return state;
+  const finalDays = days === undefined ? null : normalizeDays(days);
+  const daysChanged = finalDays !== null && !sameDays(finalDays, normalizeDays(habit.days));
+  if (finalName === habit.name && finalEmoji === habit.emoji && !daysChanged) return state;
   return {
     ...state,
-    habits: state.habits.map((h) => (h.id === id ? { ...h, name: finalName, emoji: finalEmoji } : h)),
+    habits: state.habits.map((h) => {
+      if (h.id !== id) return h;
+      const next = { ...h, name: finalName, emoji: finalEmoji };
+      if (finalDays !== null) next.days = finalDays;
+      return next;
+    }),
   };
 }
 
-/** Рекорд: самая длинная цепочка подряд отмеченных дней за всё время. Пусто → 0. */
+/**
+ * Рекорд: самая длинная серия за всё время по тем же правилам, что и getStreak
+ * (выходной без отметки серию не рвёт). Для «каждый день» — самая длинная цепочка
+ * подряд отмеченных дней. Пусто → 0.
+ */
 export function getBestStreak(habit) {
-  const days = [...new Set(habit.done)].sort();
+  const scheduled = new Set(normalizeDays(habit.days));
+  const marks = [...new Set(habit.done)].sort();
   let best = 0;
   let current = 0;
   let prev = null;
-  for (const day of days) {
-    current = prev !== null && addDays(prev, 1) === day ? current + 1 : 1;
+  for (const mark of marks) {
+    current = prev !== null && !gapHasScheduledDay(prev, mark, scheduled) ? current + 1 : 1;
     if (current > best) best = current;
-    prev = day;
+    prev = mark;
   }
   return best;
 }

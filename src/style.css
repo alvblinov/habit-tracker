@@ -485,3 +485,158 @@ button {
   border-radius: 8px;
   background: #fff;
 }
+
+/* --- Расписание по дням недели --- */
+
+.habit-days {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.edit-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.edit-days legend {
+  padding: 0;
+  margin-bottom: 6px;
+}
+
+.edit-day-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.edit-day-option:has(input:checked) {
+  border-color: var(--accent);
+  background: #dafbe1;
+}
+
+.edit-day-option:has(input:disabled) {
+  cursor: not-allowed;
+}
+
+/* Выходной по расписанию: бледнее, но кликабелен. */
+.day-cell.is-off {
+  opacity: 0.45;
+  background: repeating-linear-gradient(45deg, #ebedf0, #ebedf0 3px, #f6f8fa 3px, #f6f8fa 6px);
+}
+
+.day-cell.is-off.is-done {
+  background: var(--accent);
+}
+
+/* --- Статистика --- */
+
+.stats-toggle {
+  margin-bottom: 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  font-weight: 600;
+}
+
+.stats-toggle[aria-expanded='true'] {
+  outline: 2px solid #0969da;
+  outline-offset: 1px;
+}
+
+.stats-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.stats-panel[hidden],
+.stats-table[hidden] {
+  display: none;
+}
+
+.stats-periods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.stats-period {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.stats-period[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.stats-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+}
+
+.stats-figure {
+  margin: 0;
+  font-weight: 600;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.stats-table th,
+.stats-table td {
+  padding: 6px 4px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.stats-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.stats-habit {
+  overflow-wrap: anywhere;
+}
+
+.stats-percent-cell {
+  white-space: nowrap;
+}
+
+.stats-row-percent {
+  display: inline-block;
+  min-width: 3em;
+}
+
+.stats-meter {
+  width: 80px;
+  vertical-align: middle;
+}
+
+.stats-empty {
+  margin: 0;
+  color: var(--muted);
+}

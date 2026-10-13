@@ -4,6 +4,7 @@
 
 import { toDateKey, addDays, fromDateKey } from './dates.js';
 import { isDone } from './habits.js';
+import { isScheduled } from './schedule.js';
 
 export const INTERVALS = [30, 60, 120, 180];
 export const MAX_TIMES = 5;
@@ -117,8 +118,9 @@ function localMinutes(ms) {
   return d.getHours() * 60 + d.getMinutes();
 }
 
-// Последний момент interval-напоминания в (lower, upper] внутри активных часов, иначе null.
-function latestIntervalMoment(r, lower, upper) {
+// Последний момент interval-напоминания в (lower, upper] внутри активных часов
+// и в день по расписанию привычки, иначе null.
+function latestIntervalMoment(habit, r, lower, upper) {
   const step = r.intervalMin * MINUTE_MS;
   const startMin = timeToMinutes(r.start);
   const endMin = timeToMinutes(r.end);
@@ -127,17 +129,17 @@ function latestIntervalMoment(r, lower, upper) {
     const at = r.anchor + k * step;
     if (at <= lower) break;
     const m = localMinutes(at);
-    if (m >= startMin && m < endMin) return at;
+    if (m >= startMin && m < endMin && isScheduled(habit, toDateKey(new Date(at)))) return at;
   }
   return null;
 }
 
-// Последний момент times-напоминания в (lower, upper] в день без отметки, иначе null.
+// Последний момент times-напоминания в (lower, upper] в день по расписанию без отметки, иначе null.
 function latestTimesMoment(habit, r, lower, upper) {
   const firstDay = toDateKey(new Date(lower));
   let day = toDateKey(new Date(upper));
   for (let i = 0; day >= firstDay && i < MAX_STEPS; i += 1, day = addDays(day, -1)) {
-    if (isDone(habit, day)) continue;
+    if (isDone(habit, day) || !isScheduled(habit, day)) continue;
     const base = fromDateKey(day);
     for (let j = r.times.length - 1; j >= 0; j -= 1) {
       const [h, m] = r.times[j].split(':').map(Number);
@@ -150,7 +152,8 @@ function latestTimesMoment(habit, r, lower, upper) {
 
 /**
  * Напоминания, сработавшие в интервале (fromMs, toMs] и не старше graceMs относительно toMs.
- * Не более одного на привычку (самый поздний момент). Результат: [{ habitId, at }].
+ * Не более одного на привычку (самый поздний момент). Моменты в выходной день
+ * привычки (не по расписанию) не срабатывают (AC-27). Результат: [{ habitId, at }].
  */
 export function findDueReminders(state, fromMs, toMs, { graceMs = DEFAULT_GRACE_MS } = {}) {
   if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs <= fromMs) return [];
@@ -160,7 +163,7 @@ export function findDueReminders(state, fromMs, toMs, { graceMs = DEFAULT_GRACE_
     const r = normalizeReminder(habit.reminder);
     if (!r) continue;
     const at = r.mode === 'interval'
-      ? latestIntervalMoment(r, lower, toMs)
+      ? latestIntervalMoment(habit, r, lower, toMs)
       : latestTimesMoment(habit, r, lower, toMs);
     if (at !== null) due.push({ habitId: habit.id, at });
   }

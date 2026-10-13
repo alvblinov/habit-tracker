@@ -9,6 +9,40 @@
     <main id="app">
       <h1>Трекер привычек</h1>
 
+      <button
+        id="stats-toggle"
+        type="button"
+        class="stats-toggle"
+        data-testid="stats-toggle"
+        aria-expanded="false"
+        aria-controls="stats-panel"
+      >📊 Статистика</button>
+      <section id="stats-panel" class="stats-panel" data-testid="stats-panel" aria-label="Статистика" hidden>
+        <div class="stats-periods" role="group" aria-label="Период">
+          <button type="button" class="stats-period" data-testid="stats-period" data-period="7" aria-pressed="false">7 дней</button>
+          <button type="button" class="stats-period" data-testid="stats-period" data-period="30" aria-pressed="true">30 дней</button>
+          <button type="button" class="stats-period" data-testid="stats-period" data-period="all" aria-pressed="false">Всё время</button>
+        </div>
+        <div class="stats-summary">
+          <p id="stats-percent" class="stats-figure" data-testid="stats-percent"></p>
+          <p id="stats-total" class="stats-figure" data-testid="stats-total"></p>
+          <p id="stats-best-weekday" class="stats-figure" data-testid="stats-best-weekday"></p>
+        </div>
+        <table id="stats-table" class="stats-table">
+          <thead>
+            <tr>
+              <th scope="col">Привычка</th>
+              <th scope="col">Выполнение</th>
+              <th scope="col">Дни</th>
+              <th scope="col">Серия</th>
+              <th scope="col">Рекорд</th>
+            </tr>
+          </thead>
+          <tbody id="stats-body"></tbody>
+        </table>
+        <p id="stats-empty" class="stats-empty" data-testid="stats-empty" hidden>Добавьте привычку, чтобы увидеть статистику</p>
+      </section>
+
       <div id="reminder-banners" class="reminder-banners" aria-live="polite"></div>
 
       <form id="add-form" class="add-form" autocomplete="off">

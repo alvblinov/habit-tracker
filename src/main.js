@@ -27,6 +27,8 @@ import {
   findDueReminders,
 } from './reminders.js';
 import { ensurePermission, showNotification } from './notify.js';
+import { WEEKDAY_SHORT, WEEKDAY_FULL, normalizeDays, isScheduled, describeDays } from './schedule.js';
+import { computeStats, DEFAULT_PERIOD } from './stats.js';
 
 const GRID_DAYS = 30;
 
@@ -52,6 +54,15 @@ const emptyEl = document.querySelector('#empty-state');
 const listEl = document.querySelector('#habit-list');
 const hintEl = document.querySelector('#reminder-hint');
 const bannersEl = document.querySelector('#reminder-banners');
+const statsToggle = document.querySelector('#stats-toggle');
+const statsPanel = document.querySelector('#stats-panel');
+const statsPeriodButtons = [...statsPanel.querySelectorAll('[data-testid="stats-period"]')];
+const statsPercentEl = document.querySelector('#stats-percent');
+const statsTotalEl = document.querySelector('#stats-total');
+const statsBestWeekdayEl = document.querySelector('#stats-best-weekday');
+const statsTable = document.querySelector('#stats-table');
+const statsBody = document.querySelector('#stats-body');
+const statsEmptyEl = document.querySelector('#stats-empty');
 
 const CHECK_EVERY_MS = 15000;
 
@@ -63,6 +74,10 @@ let draft = null;
 // Форма редактирования привычки и её черновик — тоже в памяти модуля.
 let editingId = null;
 let editDraft = null;
+
+// Блок статистики: открыт/закрыт и выбранный период — в памяти модуля.
+let statsOpen = false;
+let statsPeriod = DEFAULT_PERIOD;
 
 // «Сегодня» — локальная дата, вычисляется заново на каждом рендере и действии.
 function getToday() {
@@ -189,6 +204,14 @@ function renderCard(habit, today) {
     name.dataset.testid = 'habit-name';
     name.textContent = habit.name;
     title.append(emoji, name);
+    const daysText = describeDays(habit.days);
+    if (daysText) {
+      const daysEl = document.createElement('span');
+      daysEl.className = 'habit-days';
+      daysEl.dataset.testid = 'habit-days';
+      daysEl.textContent = daysText;
+      title.append(daysEl);
+    }
     header.append(title);
   }
 
@@ -274,15 +297,19 @@ function renderCard(habit, today) {
   grid.setAttribute('aria-label', `Последние ${GRID_DAYS} дней`);
   for (const key of lastNDays(today, GRID_DAYS)) {
     const done = isDone(habit, key);
+    const scheduled = isScheduled(habit, key);
     const cell = document.createElement('button');
     cell.type = 'button';
     cell.className = 'day-cell';
     if (done) cell.classList.add('is-done');
     if (key === today) cell.classList.add('is-today');
+    // Выходной по расписанию — бледнее, но по-прежнему переключается кликом.
+    if (!scheduled) cell.classList.add('is-off');
     cell.dataset.testid = 'day-cell';
     cell.dataset.date = key;
+    cell.dataset.scheduled = String(scheduled);
     cell.setAttribute('aria-pressed', String(done));
-    const label = `${formatDate(key)}${key === today ? ' (сегодня)' : ''}${done ? ' — выполнено' : ''}`;
+    const label = `${formatDate(key)}${key === today ? ' (сегодня)' : ''}${scheduled ? '' : ' — выходной'}${done ? ' — выполнено' : ''}`;
     cell.title = label;
     cell.setAttribute('aria-label', label);
     cell.addEventListener('click', () => {
@@ -320,7 +347,7 @@ function focusInCard(habitId, testid) {
 
 function openEditForm(habit) {
   editingId = habit.id;
-  editDraft = { name: habit.name, emoji: habit.emoji };
+  editDraft = { name: habit.name, emoji: habit.emoji, days: normalizeDays(habit.days) };
   render();
   focusInCard(habit.id, 'edit-name-input');
 }
@@ -407,6 +434,48 @@ function renderEditForm(habit) {
     options.append(label);
   }
 
+  // Расписание: 7 переключателей Пн…Вс; последний отмеченный день снять нельзя.
+  const daysGroup = document.createElement('fieldset');
+  daysGroup.className = 'edit-days';
+  const daysLegend = document.createElement('legend');
+  daysLegend.className = 'field-label';
+  daysLegend.textContent = 'Дни недели';
+  daysGroup.append(daysLegend);
+  const dayBoxes = [];
+  const syncDayBoxes = () => {
+    for (const box of dayBoxes) box.disabled = box.checked && editDraft.days.length <= 1;
+  };
+  WEEKDAY_SHORT.forEach((short, index) => {
+    const day = index + 1;
+    const label = document.createElement('label');
+    label.className = 'edit-day-option';
+    label.title = WEEKDAY_FULL[index];
+
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.dataset.testid = 'edit-day';
+    box.value = String(day);
+    box.checked = editDraft.days.includes(day);
+    box.addEventListener('change', () => {
+      if (!box.checked && editDraft.days.length <= 1) {
+        box.checked = true;
+        return;
+      }
+      editDraft.days = box.checked
+        ? normalizeDays([...editDraft.days, day])
+        : editDraft.days.filter((d) => d !== day);
+      syncDayBoxes();
+    });
+
+    const caption = document.createElement('span');
+    caption.textContent = short.charAt(0).toUpperCase() + short.slice(1);
+
+    label.append(box, caption);
+    daysGroup.append(label);
+    dayBoxes.push(box);
+  });
+  syncDayBoxes();
+
   const buttons = document.createElement('div');
   buttons.className = 'edit-buttons';
 
@@ -424,7 +493,7 @@ function renderEditForm(habit) {
   cancel.addEventListener('click', closeEditForm);
 
   buttons.append(save, cancel);
-  editForm.append(input, options, buttons);
+  editForm.append(input, options, daysGroup, buttons);
   return editForm;
 }
 
@@ -673,8 +742,8 @@ function captureFocus() {
     testid: active.dataset.testid,
     habitId: card.dataset.habitId,
     date: active.dataset.date,
-    // Переключатели режима напоминания различаются значением.
-    value: active.type === 'radio' ? active.value : undefined,
+    // Переключатели режима напоминания и дни расписания различаются значением.
+    value: active.type === 'radio' || active.type === 'checkbox' ? active.value : undefined,
     // Положение курсора в текстовом поле (форма редактирования).
     selection: active.type === 'text' ? [active.selectionStart, active.selectionEnd] : undefined,
   };
@@ -703,6 +772,94 @@ function restoreFocus(saved) {
   }
 }
 
+// --- Статистика ---
+
+function formatPercent(percent) {
+  return percent === null ? '—' : `${percent}%`;
+}
+
+function parsePeriod(value) {
+  return value === 'all' ? 'all' : Number(value);
+}
+
+function renderStatsRow(row) {
+  const tr = document.createElement('tr');
+  tr.className = 'stats-row';
+  tr.dataset.testid = 'stats-row';
+  tr.dataset.habitId = row.habitId;
+
+  const habitCell = document.createElement('td');
+  habitCell.className = 'stats-habit';
+  const emoji = document.createElement('span');
+  emoji.className = 'stats-emoji';
+  emoji.textContent = row.emoji;
+  const name = document.createElement('span');
+  name.className = 'stats-name';
+  name.textContent = row.name;
+  habitCell.append(emoji, ' ', name);
+
+  const percentCell = document.createElement('td');
+  percentCell.className = 'stats-percent-cell';
+  const percentText = document.createElement('span');
+  percentText.className = 'stats-row-percent';
+  percentText.textContent = formatPercent(row.percent);
+  const meter = document.createElement('meter');
+  meter.className = 'stats-meter';
+  meter.min = 0;
+  meter.max = 100;
+  meter.value = row.percent ?? 0;
+  meter.setAttribute('aria-hidden', 'true');
+  percentCell.append(percentText, meter);
+
+  const countCell = document.createElement('td');
+  countCell.className = 'stats-count';
+  countCell.textContent = `${row.done} из ${row.scheduled}`;
+
+  const streakCell = document.createElement('td');
+  streakCell.className = 'stats-streak';
+  streakCell.textContent = `🔥 ${row.streak}`;
+
+  const bestCell = document.createElement('td');
+  bestCell.className = 'stats-best';
+  bestCell.textContent = `🏆 ${row.best}`;
+
+  tr.append(habitCell, percentCell, countCell, streakCell, bestCell);
+  return tr;
+}
+
+function renderStats(today) {
+  statsToggle.setAttribute('aria-expanded', String(statsOpen));
+  statsPanel.hidden = !statsOpen;
+  if (!statsOpen) return;
+
+  for (const button of statsPeriodButtons) {
+    button.setAttribute('aria-pressed', String(parsePeriod(button.dataset.period) === statsPeriod));
+  }
+
+  const stats = computeStats(state, today, statsPeriod);
+  const bestDay = stats.bestWeekday === null ? '—' : WEEKDAY_FULL[stats.bestWeekday - 1];
+  statsPercentEl.textContent = `Выполнено: ${formatPercent(stats.percent)}`;
+  statsTotalEl.textContent = `Всего отметок: ${stats.totalMarks}`;
+  statsBestWeekdayEl.textContent = `Лучший день: ${bestDay}`;
+
+  const hasHabits = state.habits.length > 0;
+  statsEmptyEl.hidden = hasHabits;
+  statsTable.hidden = !hasHabits;
+  statsBody.replaceChildren(...stats.rows.map(renderStatsRow));
+}
+
+statsToggle.addEventListener('click', () => {
+  statsOpen = !statsOpen;
+  render();
+});
+
+for (const button of statsPeriodButtons) {
+  button.addEventListener('click', () => {
+    statsPeriod = parsePeriod(button.dataset.period);
+    render();
+  });
+}
+
 function render() {
   const today = getToday();
   const savedFocus = captureFocus();
@@ -726,6 +883,7 @@ function render() {
 
   listEl.replaceChildren(...state.habits.map((habit) => renderCard(habit, today)));
   restoreFocus(savedFocus);
+  renderStats(today);
 }
 
 buildEmojiOptions();
