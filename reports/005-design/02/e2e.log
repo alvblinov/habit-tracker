@@ -1,0 +1,412 @@
+2026-10-14T10:23:24+03:00
+HEAD ac8c75e0289328fc36aa3c355526ab1fae42016f (+ uncommitted changes of iteration 005, runs 01-02)
+command: npm run test:e2e (run by coordinator outside sandbox)
+
+> habit-tracker@0.1.0 test:e2e
+> playwright test
+
+
+Running 115 tests using 4 workers
+
+  ok   1 [chromium] › tests\e2e\edit-best-streak.spec.js:87:3 › рекорд серии (AC-17) › 5 дней подряд месяц назад и 2 дня до сегодня → «🔥 2 …» и «🏆 рекорд: 5»; цепочки вне сетки учитываются (1.4s)
+  ok   4 [chromium] › tests\e2e\habits.spec.js:30:3 › пустое состояние (AC-9) › без привычек показывается подсказка, после добавления — скрывается, после удаления — снова видна (1.6s)
+  ok   5 [chromium] › tests\e2e\edit-best-streak.spec.js:122:3 › рекорд серии (AC-17) › рекорд через смену месяца и через 29 февраля не ломается (565ms)
+  ok   6 [chromium] › tests\e2e\habits.spec.js:47:3 › добавление привычки (AC-1, AC-2) › привычка появляется с выбранным эмодзи (846ms)
+  ok   3 [chromium] › tests\e2e\design.spec.js:211:3 › цвет новой привычки и выбор цвета (AC-32) › новые привычки получают разные цвета палитры; после reload цвета те же (2.6s)
+  ok   9 [chromium] › tests\e2e\design.spec.js:237:3 › цвет новой привычки и выбор цвета (AC-32) › новая привычка не берёт цвет, уже занятый другими (первый свободный) (686ms)
+  ok   8 [chromium] › tests\e2e\habits.spec.js:55:3 › добавление привычки (AC-1, AC-2) › без выбора эмодзи ставится ⭐, в том числе после предыдущего выбора (838ms)
+  ok   7 [chromium] › tests\e2e\edit-best-streak.spec.js:138:3 › рекорд: «🏆 рекорд!», отсутствие и пересчёт (AC-18) › без отметок рекорда нет; отметка сегодня → «🏆 рекорд!»; снятие → рекорда снова нет (1.4s)
+  ok  12 [chromium] › tests\e2e\edit-best-streak.spec.js:153:3 › рекорд: «🏆 рекорд!», отсутствие и пересчёт (AC-18) › рекорд равен серии, заканчивающейся вчера (сегодня не отмечено) → «🏆 рекорд!» (539ms)
+  ok  11 [chromium] › tests\e2e\habits.spec.js:63:3 › добавление привычки (AC-1, AC-2) › в наборе ровно 12 эмодзи из требований, включая ✍️ (593ms)
+  ok  14 [chromium] › tests\e2e\habits.spec.js:84:3 › добавление привычки (AC-1, AC-2) › привычку можно добавить с эмодзи ✍️ (1.2s)
+  ok  13 [chromium] › tests\e2e\edit-best-streak.spec.js:164:3 › рекорд: «🏆 рекорд!», отсутствие и пересчёт (AC-18) › снятие отметки в сетке пересчитывает рекорд вниз; отметка — вверх (1.5s)
+  ok  10 [chromium] › tests\e2e\design.spec.js:250:3 › цвет новой привычки и выбор цвета (AC-32) › форма ✏️: 8 цветов, отмечен текущий; выбор сохраняется и переживает reload; «Отмена» не меняет цвет (2.3s)
+  ok   2 [chromium] › tests\e2e\reminders.spec.js:131:3 › настройка и выключение (AC-10) › «Каждые N», 1 ч, 9:00–21:00 → подпись на карточке; «Выключить» → подписи и напоминаний нет (5.8s)
+  ok  15 [chromium] › tests\e2e\habits.spec.js:94:3 › добавление привычки (AC-1, AC-2) › пустое название и только пробелы не добавляются (1.1s)
+  ok  16 [chromium] › tests\e2e\edit-best-streak.spec.js:212:3 › редактирование: сохранение и отмена (AC-19) › ✏️ открывает форму с текущими значениями; «Сохранить» → карточка с новыми названием и эмодзи (1.5s)
+  ok  19 [chromium] › tests\e2e\habits.spec.js:105:3 › добавление привычки (AC-1, AC-2) › пробелы по краям названия обрезаются (997ms)
+  ok  18 [chromium] › tests\e2e\reminders.spec.js:163:3 › настройка и выключение (AC-10) › «Отмена» закрывает панель без изменений (1.9s)
+  ok  21 [chromium] › tests\e2e\habits.spec.js:113:3 › добавление привычки (AC-1, AC-2) › название длиннее 40 символов ввести нельзя (743ms)
+  ok  20 [chromium] › tests\e2e\edit-best-streak.spec.js:245:3 › редактирование: сохранение и отмена (AC-19) › Enter в поле названия сохраняет (1.0s)
+  ok  22 [chromium] › tests\e2e\reminders.spec.js:174:3 › настройка и выключение (AC-10) › начало активных часов позже конца — не сохраняется, показывается ошибка (1.0s)
+  ok  23 [chromium] › tests\e2e\habits.spec.js:124:3 › добавление привычки (AC-1, AC-2) › одинаковые названия разрешены (686ms)
+  ok  17 [chromium] › tests\e2e\design.spec.js:306:3 › цвет новой привычки и выбор цвета (AC-32) › можно выбрать каждый из 8 цветов; все 8 видимо различаются (3.5s)
+  ok  24 [chromium] › tests\e2e\edit-best-streak.spec.js:260:3 › редактирование: сохранение и отмена (AC-19) › «Отмена» — ничего не меняется, в том числе после перезагрузки (1.3s)
+  ok  27 [chromium] › tests\e2e\design.spec.js:323:3 › цвет новой привычки и выбор цвета (AC-32) › старые данные без цвета открываются с цветами по порядку; битый цвет не ломает страницу (948ms)
+  ok  28 [chromium] › tests\e2e\edit-best-streak.spec.js:285:3 › редактирование: сохранение и отмена (AC-19) › Esc — ничего не меняется (из поля и после выбора эмодзи) (812ms)
+  ok  30 [chromium] › tests\e2e\edit-best-streak.spec.js:306:3 › редактирование: сохранение и отмена (AC-19) › перерисовка во время редактирования (клик в сетке) не теряет введённое (655ms)
+  ok  29 [chromium] › tests\e2e\design.spec.js:358:5 › где виден цвет привычки (AC-33) › плашка эмодзи, отмеченная кнопка, выполненные клетки и строка статистики — в цвете привычки (light) (1.0s)
+  ok  31 [chromium] › tests\e2e\edit-best-streak.spec.js:332:5 › редактирование: правила названия (AC-20) › пустое название не сохраняется, форма остаётся открытой (964ms)
+  ok  32 [chromium] › tests\e2e\design.spec.js:358:5 › где виден цвет привычки (AC-33) › плашка эмодзи, отмеченная кнопка, выполненные клетки и строка статистики — в цвете привычки (dark) (1.3s)
+  ok  25 [chromium] › tests\e2e\reminders.spec.js:189:3 › «Каждые N» (AC-11) › включено в 10:15 с интервалом 1 ч → напоминания в 11:15 и 12:15; отметка «сегодня» их не отменяет (3.7s)
+  ok  33 [chromium] › tests\e2e\edit-best-streak.spec.js:332:5 › редактирование: правила названия (AC-20) › только пробелы название не сохраняется, форма остаётся открытой (1.0s)
+  ok  34 [chromium] › tests\e2e\design.spec.js:435:3 › где виден цвет привычки (AC-33) › смена цвета в ✏️ перекрашивает кнопку, клетки и строку статистики (892ms)
+  ok  36 [chromium] › tests\e2e\edit-best-streak.spec.js:358:3 › редактирование: правила названия (AC-20) › пробелы по краям обрезаются (545ms)
+  ok  38 [chromium] › tests\e2e\edit-best-streak.spec.js:369:3 › редактирование: правила названия (AC-20) › название длиннее 40 символов ввести нельзя (540ms)
+  ok  37 [chromium] › tests\e2e\design.spec.js:477:3 › кольцо прогресса дня (AC-34) › 0/0 без привычек → 0/2 → 1/2 → 2/2 «всё выполнено» → снятие отметки → удаление → reload (1.2s)
+  x   26 [chromium] › tests\e2e\habits.spec.js:131:3 › добавление привычки (AC-1, AC-2) › название с HTML выводится как текст, а не разметка (5.8s)
+  ok  40 [chromium] › tests\e2e\design.spec.js:517:3 › кольцо прогресса дня (AC-34) › клик по сегодняшней клетке сетки обновляет кольцо (526ms)
+  ok  41 [chromium] › tests\e2e\design.spec.js:529:3 › кольцо прогресса дня (AC-34) › привычка с выходным сегодня не входит в Y: 1 отмеченная ежедневная → 1/1 «всё выполнено» (331ms)
+  ok  42 [chromium] › tests\e2e\design.spec.js:543:3 › тема оформления (AC-35) › без ручного выбора тема следует системной настройке (520ms)
+  ok  44 [chromium] › tests\e2e\design.spec.js:564:3 › тема оформления (AC-35) › кнопка переключает тему; выбор переживает reload и не трогает данные привычек (852ms)
+  ok  43 [chromium] › tests\e2e\habits.spec.js:142:3 › отметка за сегодня, серия и сводка (AC-3, AC-4, AC-7) › нажатие «сегодня» отмечает, повторное снимает; серия и сводка пересчитываются (1.2s)
+  ok  45 [chromium] › tests\e2e\design.spec.js:615:3 › тема оформления (AC-35) › сохранённая тёмная тема применяется при загрузке при светлой системной (396ms)
+  ok  35 [chromium] › tests\e2e\reminders.spec.js:208:3 › «Каждые N» (AC-11) › вне активных часов напоминаний нет (5.2s)
+  ok  47 [chromium] › tests\e2e\design.spec.js:624:3 › тема оформления (AC-35) › битое значение темы игнорируется — работает системная тема, страница не ломается (527ms)
+  ok  46 [chromium] › tests\e2e\habits.spec.js:169:3 › отметка за сегодня, серия и сводка (AC-3, AC-4, AC-7) › сводка обновляется при добавлении и удалении (876ms)
+  ok  50 [chromium] › tests\e2e\habits.spec.js:184:3 › сетка 30 дней (AC-4, AC-5) › 30 клеток, последняя — сегодня, будущих дней нет (747ms)
+  ok  49 [chromium] › tests\e2e\design.spec.js:643:5 › тема оформления (AC-35) › основной текст читаем — контраст не ниже 4.5:1 (светлая системная) (837ms)
+  ok  52 [chromium] › tests\e2e\design.spec.js:643:5 › тема оформления (AC-35) › основной текст читаем — контраст не ниже 4.5:1 (тёмная системная) (529ms)
+  ok  51 [chromium] › tests\e2e\habits.spec.js:197:3 › сетка 30 дней (AC-4, AC-5) › клик по прошедшим дням меняет серию; пропуск дня её обрывает (876ms)
+  ok  53 [chromium] › tests\e2e\design.spec.js:643:5 › тема оформления (AC-35) › основной текст читаем — контраст не ниже 4.5:1 (тёмная выбрана вручную) (614ms)
+  x   39 [chromium] › tests\e2e\edit-best-streak.spec.js:382:3 › редактирование: правила названия (AC-20) › HTML в новом названии выводится как текст (5.6s)
+  ok  54 [chromium] › tests\e2e\habits.spec.js:228:3 › сетка 30 дней (AC-4, AC-5) › отмеченные дни визуально выделены (644ms)
+  ok  55 [chromium] › tests\e2e\design.spec.js:643:5 › тема оформления (AC-35) › основной текст читаем — контраст не ниже 4.5:1 (светлая выбрана вручную) (522ms)
+  ok  56 [chromium] › tests\e2e\habits.spec.js:240:3 › сетка 30 дней (AC-4, AC-5) › на границе месяца сетка захватывает прошлый месяц и серия считается через неё (565ms)
+  x   57 [chromium] › tests\e2e\design.spec.js:807:3 › эмодзи Noto картинками (AC-37) › все 12 эмодзи в форме добавления, ✏️, на карточке и в статистике — локальные картинки; внешних запросов нет (628ms)
+  ok  58 [chromium] › tests\e2e\habits.spec.js:255:3 › сетка 30 дней (AC-4, AC-5) › около полуночи «сегодня» — локальный день, а не UTC (492ms)
+  ok  60 [chromium] › tests\e2e\habits.spec.js:265:3 › удаление (AC-6) › отмена подтверждения ничего не меняет, подтверждение удаляет привычку и её отметки (1.1s)
+  ok  59 [chromium] › tests\e2e\edit-best-streak.spec.js:402:3 › после редактирования всё сохраняется (AC-21) › отметки, серия, рекорд и напоминание на месте; уведомление — с новыми названием и эмодзи; после reload — изменения (1.7s)
+  ok  62 [chromium] › tests\e2e\habits.spec.js:302:3 › удаление (AC-6) › новая привычка с тем же названием не наследует отметки удалённой (926ms)
+  x   61 [chromium] › tests\e2e\design.spec.js:856:3 › эмодзи Noto картинками (AC-37) › выбор эмодзи при добавлении и в ✏️ работает как прежде: в данных — символ, после reload — та же картинка (1.1s)
+  ok  63 [chromium] › tests\e2e\edit-best-streak.spec.js:465:3 › после редактирования всё сохраняется (AC-21) › редактирование привычки, добавленной через интерфейс, сохраняется после перезагрузки (1.1s)
+  ok  64 [chromium] › tests\e2e\habits.spec.js:319:3 › сохранение после перезагрузки (AC-8) › привычки, эмодзи и все отметки на месте после page.reload() (1.3s)
+  ok  65 [chromium] › tests\e2e\schedule-stats.spec.js:101:3 › расписание в форме ✏️ (AC-23) › снять вт, чт, сб, вс → «Сохранить» → подпись «пн, ср, пт»; после перезагрузки на месте (1.3s)
+  ok  66 [chromium] › tests\e2e\habits.spec.js:361:3 › сохранение после перезагрузки (AC-8) › данные пишутся под своим ключом и не стирают чужие ключи localStorage (687ms)
+  x   67 [chromium] › tests\e2e\design.spec.js:895:3 › эмодзи Noto картинками (AC-37) › эмодзи вне набора в данных не ломает страницу: показывается картинка ⭐ (815ms)
+  ok  69 [chromium] › tests\e2e\habits.spec.js:370:3 › сохранение после перезагрузки (AC-8) › повреждённые данные в хранилище не ломают страницу (697ms)
+  ok  68 [chromium] › tests\e2e\schedule-stats.spec.js:133:3 › расписание в форме ✏️ (AC-23) › снять все дни нельзя: последний отмеченный день не снимается (850ms)
+  ok  71 [chromium] › tests\e2e\schedule-stats.spec.js:157:3 › расписание в форме ✏️ (AC-23) › «Отмена» не меняет дни; вернуть все дни → подпись исчезает, и после перезагрузки тоже (1.2s)
+  ok  70 [chromium] › tests\e2e\habits.spec.js:389:3 › две вкладки (регрессия: замечание 1 аудита 01) › изменения из одной вкладки видны в другой без reload и не теряются при записи (1.4s)
+  ok  73 [chromium] › tests\e2e\schedule-stats.spec.js:182:3 › расписание в форме ✏️ (AC-23) › старые данные без расписания открываются как «каждый день» (AC-23, AC-31) (720ms)
+  x   72 [chromium] › tests\e2e\design.spec.js:913:3 › «оживление» эмодзи при отметке (AC-38) › кнопка «Сегодня» для 📚: анимация WebP ~2 с, затем снова статичная картинка; WebP грузится только при отметке (758ms)
+  ok  75 [chromium] › tests\e2e\schedule-stats.spec.js:206:3 › серия по расписанию на карточке (AC-24) › «пн, ср, пт», сегодня суббота: пн+ср+пт → 🔥 3; без среды → 🔥 1 и рекорд по тем же правилам; отметка в вс → +1 (654ms)
+  ok  74 [chromium] › tests\e2e\habits.spec.js:440:3 › две вкладки (регрессия: замечание 1 аудита 01) › удаление в одной вкладке не возвращается записью из другой (1.4s)
+  ok  77 [chromium] › tests\e2e\habits.spec.js:465:3 › фокус клавиатуры после действия (регрессия: замечание 5 аудита 01) › после Enter/Space на «Сегодня» фокус остаётся на кнопке «Сегодня» той же привычки (848ms)
+  ok  76 [chromium] › tests\e2e\schedule-stats.spec.js:229:3 › выходные дни в сетке (AC-25) › выходные выглядят иначе, кликабельны и пересчитывают серию; после перезагрузки отметка на месте (1.5s)
+  ok  78 [chromium] › tests\e2e\habits.spec.js:490:3 › фокус клавиатуры после действия (регрессия: замечание 5 аудита 01) › после Enter/Space на клетке сетки фокус остаётся на той же клетке той же привычки (772ms)
+  x   79 [chromium] › tests\e2e\design.spec.js:952:3 › «оживление» эмодзи при отметке (AC-38) › клик по сегодняшней клетке тоже запускает анимацию (863ms)
+  ok  80 [chromium] › tests\e2e\schedule-stats.spec.js:280:3 › сводка дня с расписанием (AC-26) › неотмеченная привычка с выходным сегодня не входит в Y; отмеченная в выходной — входит в X и Y (739ms)
+  ok  81 [chromium] › tests\e2e\schedule-stats.spec.js:318:3 › напоминания только в дни по расписанию (AC-27) › вторник: приходят только напоминания привычек «вт, чт» (оба режима) (432ms)
+  ok  82 [chromium] › tests\e2e\schedule-stats.spec.js:331:3 › напоминания только в дни по расписанию (AC-27) › среда: приходят только напоминания привычек «пн, ср, пт» (оба режима) (533ms)
+  x   83 [chromium] › tests\e2e\design.spec.js:969:3 › «оживление» эмодзи при отметке (AC-38) › 🏃, 🧘, 💊: без WebP, но с эффектом «подпрыгивания», затем эффект снимается (609ms)
+  ok  84 [chromium] › tests\e2e\schedule-stats.spec.js:356:3 › блок статистики (AC-28) › «📊 Статистика» открывает блок с периодом 30 дней; переключение периода пересчитывает; повторное нажатие закрывает (651ms)
+  ok  85 [chromium] › tests\e2e\schedule-stats.spec.js:408:3 › процент и отметки по расписанию (AC-29) › процент и «N из M» — по дням расписания с начала истории; отметки в выходные — во «всего отметок» (421ms)
+  ok  86 [chromium] › tests\e2e\schedule-stats.spec.js:429:3 › процент и отметки по расписанию (AC-29) › неотмеченное сегодня не занижает процент; отметка сегодня учитывается (805ms)
+  x   87 [chromium] › tests\e2e\design.spec.js:995:3 › «оживление» эмодзи при отметке (AC-38) › снятие отметки (кнопкой и клеткой) эффект не запускает; снятие во время эффекта его прекращает (592ms)
+  ok  88 [chromium] › tests\e2e\schedule-stats.spec.js:449:3 › лучший день недели, сортировка, пустое состояние (AC-30) › лучший день — с наибольшим процентом выполнения, а не с наибольшим числом отметок (430ms)
+  ok  89 [chromium] › tests\e2e\schedule-stats.spec.js:464:3 › лучший день недели, сортировка, пустое состояние (AC-30) › нет данных (привычка создана сегодня, отметок нет) → «Лучший день: —» (392ms)
+  ok  48 [chromium] › tests\e2e\reminders.spec.js:224:3 › «В определённое время» (AC-12) › 08:00 и 20:00 приходят, если не отмечено; после отметки — не приходят (17.3s)
+  ok  90 [chromium] › tests\e2e\schedule-stats.spec.js:476:3 › лучший день недели, сортировка, пустое состояние (AC-30) › дни по расписанию есть, но ни одной отметки за период → «Лучший день: —» (518ms)
+  x   91 [chromium] › tests\e2e\design.spec.js:1026:3 › «оживление» эмодзи при отметке (AC-38) › отметка прошлого дня эффекта не даёт (872ms)
+  ok  92 [chromium] › tests\e2e\reminders.spec.js:246:3 › «В определённое время» (AC-12) › больше 5 времён добавить нельзя (1.5s)
+  ok  94 [chromium] › tests\e2e\reminders.spec.js:272:3 › «В определённое время» (AC-12) › одинаковые времена не дублируются (966ms)
+  x   95 [chromium] › tests\e2e\design.spec.js:1046:3 › «оживление» эмодзи при отметке (AC-38) › при prefers-reduced-motion: reduce — без анимации и без эффекта; отметка работает (658ms)
+  ok  96 [chromium] › tests\e2e\reminders.spec.js:285:3 › уведомление и плашка (AC-13) › разрешено → системное уведомление «<эмодзи> Пора: <название>», плашки нет; клик открывает вкладку (729ms)
+  ok  97 [chromium] › tests\e2e\reminders.spec.js:309:3 › уведомление и плашка (AC-13) › запрещено → плашка на странице, «Понятно» её закрывает (863ms)
+  ok  98 [chromium] › tests\e2e\design.spec.js:1074:3 › подпись об авторстве эмодзи (AC-39) › в подвале — «Эмодзи: Google Noto» с лицензиями и ссылкой на источник (917ms)
+  ok  99 [chromium] › tests\e2e\reminders.spec.js:323:3 › уведомление и плашка (AC-13) › разрешение запрашивается при первом включении напоминания, а не при загрузке (1.2s)
+  ok 100 [chromium] › tests\e2e\design.spec.js:1149:5 › фон с пастельными пятнами (AC-40) › неподвижные пятна radial-gradient видны на фоне и не перехватывают клики (светлая системная) (767ms)
+  ok 101 [chromium] › tests\e2e\reminders.spec.js:340:3 › уведомление и плашка (AC-13) › пользователь отказал в разрешении при включении → плашка (696ms)
+  ok 102 [chromium] › tests\e2e\design.spec.js:1149:5 › фон с пастельными пятнами (AC-40) › неподвижные пятна radial-gradient видны на фоне и не перехватывают клики (тёмная системная) (520ms)
+  x   93 [chromium] › tests\e2e\schedule-stats.spec.js:484:3 › лучший день недели, сортировка, пустое состояние (AC-30) › таблица отсортирована по проценту; название выводится как текст (5.8s)
+  ok 104 [chromium] › tests\e2e\design.spec.js:1149:5 › фон с пастельными пятнами (AC-40) › неподвижные пятна radial-gradient видны на фоне и не перехватывают клики (тёмная выбрана вручную) (667ms)
+  ok 103 [chromium] › tests\e2e\reminders.spec.js:352:3 › уведомление и плашка (AC-13) › уведомления недоступны → плашка без ошибок; название выводится как текст (869ms)
+  ok 105 [chromium] › tests\e2e\design.spec.js:1181:3 › фон с пастельными пятнами (AC-40) › в тёмной теме пятна другие (приглушённые), чем в светлой (314ms)
+  ok 107 [chromium] › tests\e2e\design.spec.js:1194:5 › фон с пастельными пятнами (AC-40) › основной текст читаем и поверх пятен — контраст не ниже 4.5:1 (светлая системная) (319ms)
+  ok 109 [chromium] › tests\e2e\design.spec.js:1194:5 › фон с пастельными пятнами (AC-40) › основной текст читаем и поверх пятен — контраст не ниже 4.5:1 (тёмная системная) (426ms)
+  ok 108 [chromium] › tests\e2e\schedule-stats.spec.js:513:3 › лучший день недели, сортировка, пустое состояние (AC-30) › без привычек — подсказка вместо таблицы; после добавления привычки — строка таблицы (627ms)
+  ok 110 [chromium] › tests\e2e\design.spec.js:1194:5 › фон с пастельными пятнами (AC-40) › основной текст читаем и поверх пятен — контраст не ниже 4.5:1 (тёмная выбрана вручную) (305ms)
+  ok 106 [chromium] › tests\e2e\reminders.spec.js:371:3 › время до открытия страницы (AC-14) › напоминания, наступившие до открытия вкладки, не приходят; следующие — приходят (1.6s)
+  ok 111 [chromium] › tests\e2e\reminders.spec.js:402:3 › время до открытия страницы (AC-14) › после закрытия и повторного открытия вкладки пропущенное не досылается (859ms)
+  ok 112 [chromium] › tests\e2e\reminders.spec.js:425:3 › сохранение и удаление (AC-15) › настройки обоих режимов сохраняются после перезагрузки и продолжают работать (3.7s)
+  ok 113 [chromium] › tests\e2e\reminders.spec.js:460:3 › сохранение и удаление (AC-15) › при удалении привычки её напоминание удаляется (1.1s)
+  ok 114 [chromium] › tests\e2e\reminders.spec.js:485:3 › сохранение и удаление (AC-15) › данные первой версии (без напоминаний) открываются без ошибок, напоминание можно включить (542ms)
+  ok 115 [chromium] › tests\e2e\reminders.spec.js:514:3 › сохранение и удаление (AC-15) › битое напоминание в хранилище не ломает страницу: привычка видна без подписи (2.6s)
+
+
+  1) [chromium] › tests\e2e\design.spec.js:807:3 › эмодзи Noto картинками (AC-37) › все 12 эмодзи в форме добавления, ✏️, на карточке и в статистике — локальные картинки; внешних запросов нет 
+
+    Error: 💧 (статичная): символ не рисуется системным шрифтом
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      786 |   expect(info.height, `${where}: картинка видна`).toBeGreaterThan(0);
+      787 |   expect(info.text, `${where}: текст элемента — прежний символ`).toBe(char);
+    > 788 |   expect(info.visibleText, `${where}: символ не рисуется системным шрифтом`).toBe(false);
+          |                                                                              ^
+      789 |   return info;
+      790 | }
+      791 |
+        at expectNotoImage (C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:788:78)
+        at C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:822:37
+
+    Error Context: test-results\design-эмодзи-Noto-картинк-3e541-ртинки-внешних-запросов-нет-chromium\error-context.md
+
+  2) [chromium] › tests\e2e\design.spec.js:856:3 › эмодзи Noto картинками (AC-37) › выбор эмодзи при добавлении и в ✏️ работает как прежде: в данных — символ, после reload — та же картинка 
+
+    Error: ⭐ (статичная): символ не рисуется системным шрифтом
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      786 |   expect(info.height, `${where}: картинка видна`).toBeGreaterThan(0);
+      787 |   expect(info.text, `${where}: текст элемента — прежний символ`).toBe(char);
+    > 788 |   expect(info.visibleText, `${where}: символ не рисуется системным шрифтом`).toBe(false);
+          |                                                                              ^
+      789 |   return info;
+      790 | }
+      791 |
+        at expectNotoImage (C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:788:78)
+        at C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:868:5
+
+    Error Context: test-results\design-эмодзи-Noto-картинк-c3f88-сле-reload-—-та-же-картинка-chromium\error-context.md
+
+  3) [chromium] › tests\e2e\design.spec.js:895:3 › эмодзи Noto картинками (AC-37) › эмодзи вне набора в данных не ломает страницу: показывается картинка ⭐ 
+
+    Error: ⭐ (статичная): символ не рисуется системным шрифтом
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      786 |   expect(info.height, `${where}: картинка видна`).toBeGreaterThan(0);
+      787 |   expect(info.text, `${where}: текст элемента — прежний символ`).toBe(char);
+    > 788 |   expect(info.visibleText, `${where}: символ не рисуется системным шрифтом`).toBe(false);
+          |                                                                              ^
+      789 |   return info;
+      790 | }
+      791 |
+        at expectNotoImage (C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:788:78)
+        at C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:901:5
+
+    Error Context: test-results\design-эмодзи-Noto-картинк-ec188-ицу-показывается-картинка-⭐-chromium\error-context.md
+
+  4) [chromium] › tests\e2e\design.spec.js:913:3 › «оживление» эмодзи при отметке (AC-38) › кнопка «Сегодня» для 📚: анимация WebP ~2 с, затем снова статичная картинка; WebP грузится только при отметке 
+
+    Error: 📚 (статичная): символ не рисуется системным шрифтом
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      786 |   expect(info.height, `${where}: картинка видна`).toBeGreaterThan(0);
+      787 |   expect(info.text, `${where}: текст элемента — прежний символ`).toBe(char);
+    > 788 |   expect(info.visibleText, `${where}: символ не рисуется системным шрифтом`).toBe(false);
+          |                                                                              ^
+      789 |   return info;
+      790 | }
+      791 |
+        at expectNotoImage (C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:788:78)
+        at C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:922:5
+
+    Error Context: test-results\design-«оживление»-эмодзи--6d6b1-грузится-только-при-отметке-chromium\error-context.md
+
+  5) [chromium] › tests\e2e\design.spec.js:952:3 › «оживление» эмодзи при отметке (AC-38) › клик по сегодняшней клетке тоже запускает анимацию 
+
+    Error: 🌱 (анимация): символ не рисуется системным шрифтом
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      786 |   expect(info.height, `${where}: картинка видна`).toBeGreaterThan(0);
+      787 |   expect(info.text, `${where}: текст элемента — прежний символ`).toBe(char);
+    > 788 |   expect(info.visibleText, `${where}: символ не рисуется системным шрифтом`).toBe(false);
+          |                                                                              ^
+      789 |   return info;
+      790 | }
+      791 |
+        at expectNotoImage (C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:788:78)
+        at C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:961:5
+
+    Error Context: test-results\design-«оживление»-эмодзи--70514-тке-тоже-запускает-анимацию-chromium\error-context.md
+
+  6) [chromium] › tests\e2e\design.spec.js:969:3 › «оживление» эмодзи при отметке (AC-38) › 🏃, 🧘, 💊: без WebP, но с эффектом «подпрыгивания», затем эффект снимается 
+
+    Error: 🏃 (статичная): символ не рисуется системным шрифтом
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      786 |   expect(info.height, `${where}: картинка видна`).toBeGreaterThan(0);
+      787 |   expect(info.text, `${where}: текст элемента — прежний символ`).toBe(char);
+    > 788 |   expect(info.visibleText, `${where}: символ не рисуется системным шрифтом`).toBe(false);
+          |                                                                              ^
+      789 |   return info;
+      790 | }
+      791 |
+        at expectNotoImage (C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:788:78)
+        at C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:979:20
+
+    Error Context: test-results\design-«оживление»-эмодзи--c4d15-ния»-затем-эффект-снимается-chromium\error-context.md
+
+  7) [chromium] › tests\e2e\design.spec.js:995:3 › «оживление» эмодзи при отметке (AC-38) › снятие отметки (кнопкой и клеткой) эффект не запускает; снятие во время эффекта его прекращает 
+
+    Error: 📚 (статичная): символ не рисуется системным шрифтом
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      786 |   expect(info.height, `${where}: картинка видна`).toBeGreaterThan(0);
+      787 |   expect(info.text, `${where}: текст элемента — прежний символ`).toBe(char);
+    > 788 |   expect(info.visibleText, `${where}: символ не рисуется системным шрифтом`).toBe(false);
+          |                                                                              ^
+      789 |   return info;
+      790 | }
+      791 |
+        at expectNotoImage (C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:788:78)
+        at C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:1006:5
+
+    Error Context: test-results\design-«оживление»-эмодзи--9b666-ремя-эффекта-его-прекращает-chromium\error-context.md
+
+  8) [chromium] › tests\e2e\design.spec.js:1026:3 › «оживление» эмодзи при отметке (AC-38) › отметка прошлого дня эффекта не даёт 
+
+    Error: 📚 (статичная): символ не рисуется системным шрифтом
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      786 |   expect(info.height, `${where}: картинка видна`).toBeGreaterThan(0);
+      787 |   expect(info.text, `${where}: текст элемента — прежний символ`).toBe(char);
+    > 788 |   expect(info.visibleText, `${where}: символ не рисуется системным шрифтом`).toBe(false);
+          |                                                                              ^
+      789 |   return info;
+      790 | }
+      791 |
+        at expectNotoImage (C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:788:78)
+        at C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:1035:5
+
+    Error Context: test-results\design-«оживление»-эмодзи--bd9f4-рошлого-дня-эффекта-не-даёт-chromium\error-context.md
+
+  9) [chromium] › tests\e2e\design.spec.js:1046:3 › «оживление» эмодзи при отметке (AC-38) › при prefers-reduced-motion: reduce — без анимации и без эффекта; отметка работает 
+
+    Error: 📚 (статичная): символ не рисуется системным шрифтом
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      786 |   expect(info.height, `${where}: картинка видна`).toBeGreaterThan(0);
+      787 |   expect(info.text, `${where}: текст элемента — прежний символ`).toBe(char);
+    > 788 |   expect(info.visibleText, `${where}: символ не рисуется системным шрифтом`).toBe(false);
+          |                                                                              ^
+      789 |   return info;
+      790 | }
+      791 |
+        at expectNotoImage (C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:788:78)
+        at C:\Users\1\Documents\habit-tracker\tests\e2e\design.spec.js:1056:5
+
+    Error Context: test-results\design-«оживление»-эмодзи--87841-ез-эффекта-отметка-работает-chromium\error-context.md
+
+  10) [chromium] › tests\e2e\edit-best-streak.spec.js:382:3 › редактирование: правила названия (AC-20) › HTML в новом названии выводится как текст 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('[data-testid="habit-card"][data-habit-id="h1"]').locator('b, img')
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" locator('[data-testid="habit-card"][data-habit-id="h1"]').locator('b, img') with timeout 5000ms
+      - waiting for locator('[data-testid="habit-card"][data-habit-id="h1"]').locator('b, img')
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      390 |     await card.getByTestId('edit-save').click();
+      391 |     expect(await card.getByTestId('habit-name').textContent()).toBe(name);
+    > 392 |     await expect(card.locator('b, img')).toHaveCount(0);
+          |                                          ^
+      393 |
+      394 |     await page.reload();
+      395 |     expect(await cardById(page, 'h1').getByTestId('habit-name').textContent()).toBe(name);
+        at C:\Users\1\Documents\habit-tracker\tests\e2e\edit-best-streak.spec.js:392:42
+
+    Error Context: test-results\edit-best-streak-редактиро-99228-азвании-выводится-как-текст-chromium\error-context.md
+
+  11) [chromium] › tests\e2e\habits.spec.js:131:3 › добавление привычки (AC-1, AC-2) › название с HTML выводится как текст, а не разметка 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByTestId('habit-card').first().locator('img')
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" getByTestId('habit-card').first().locator('img') with timeout 5000ms
+      - waiting for getByTestId('habit-card').first().locator('img')
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      135 |     expect(await card.getByTestId('habit-name').textContent()).toBe('<b>жирный</b><img src=x>');
+      136 |     await expect(card.locator('b')).toHaveCount(0);
+    > 137 |     await expect(card.locator('img')).toHaveCount(0);
+          |                                       ^
+      138 |   });
+      139 | });
+      140 |
+        at C:\Users\1\Documents\habit-tracker\tests\e2e\habits.spec.js:137:39
+
+    Error Context: test-results\habits-добавление-привычки-b6817-тся-как-текст-а-не-разметка-chromium\error-context.md
+
+  12) [chromium] › tests\e2e\schedule-stats.spec.js:484:3 › лучший день недели, сортировка, пустое состояние (AC-30) › таблица отсортирована по проценту; название выводится как текст 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('[data-testid="stats-row"][data-habit-id="high"]').locator('b, img')
+    Expected: 0
+    Received: 1
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" locator('[data-testid="stats-row"][data-habit-id="high"]').locator('b, img') with timeout 5000ms
+      - waiting for locator('[data-testid="stats-row"][data-habit-id="high"]').locator('b, img')
+        14 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      507 |
+      508 |     await expect(statsRow(page, 'high')).toContainText(htmlName);
+    > 509 |     await expect(statsRow(page, 'high').locator('b, img')).toHaveCount(0);
+          |                                                            ^
+      510 |     expect(errors).toEqual([]);
+      511 |   });
+      512 |
+        at C:\Users\1\Documents\habit-tracker\tests\e2e\schedule-stats.spec.js:509:60
+
+    Error Context: test-results\schedule-stats-лучший-день-cf8fa-азвание-выводится-как-текст-chromium\error-context.md
+
+  12 failed
+    [chromium] › tests\e2e\design.spec.js:807:3 › эмодзи Noto картинками (AC-37) › все 12 эмодзи в форме добавления, ✏️, на карточке и в статистике — локальные картинки; внешних запросов нет 
+    [chromium] › tests\e2e\design.spec.js:856:3 › эмодзи Noto картинками (AC-37) › выбор эмодзи при добавлении и в ✏️ работает как прежде: в данных — символ, после reload — та же картинка 
+    [chromium] › tests\e2e\design.spec.js:895:3 › эмодзи Noto картинками (AC-37) › эмодзи вне набора в данных не ломает страницу: показывается картинка ⭐ 
+    [chromium] › tests\e2e\design.spec.js:913:3 › «оживление» эмодзи при отметке (AC-38) › кнопка «Сегодня» для 📚: анимация WebP ~2 с, затем снова статичная картинка; WebP грузится только при отметке 
+    [chromium] › tests\e2e\design.spec.js:952:3 › «оживление» эмодзи при отметке (AC-38) › клик по сегодняшней клетке тоже запускает анимацию 
+    [chromium] › tests\e2e\design.spec.js:969:3 › «оживление» эмодзи при отметке (AC-38) › 🏃, 🧘, 💊: без WebP, но с эффектом «подпрыгивания», затем эффект снимается 
+    [chromium] › tests\e2e\design.spec.js:995:3 › «оживление» эмодзи при отметке (AC-38) › снятие отметки (кнопкой и клеткой) эффект не запускает; снятие во время эффекта его прекращает 
+    [chromium] › tests\e2e\design.spec.js:1026:3 › «оживление» эмодзи при отметке (AC-38) › отметка прошлого дня эффекта не даёт 
+    [chromium] › tests\e2e\design.spec.js:1046:3 › «оживление» эмодзи при отметке (AC-38) › при prefers-reduced-motion: reduce — без анимации и без эффекта; отметка работает 
+    [chromium] › tests\e2e\edit-best-streak.spec.js:382:3 › редактирование: правила названия (AC-20) › HTML в новом названии выводится как текст 
+    [chromium] › tests\e2e\habits.spec.js:131:3 › добавление привычки (AC-1, AC-2) › название с HTML выводится как текст, а не разметка 
+    [chromium] › tests\e2e\schedule-stats.spec.js:484:3 › лучший день недели, сортировка, пустое состояние (AC-30) › таблица отсортирована по проценту; название выводится как текст 
+  103 passed (56.4s)
+exit code: 1

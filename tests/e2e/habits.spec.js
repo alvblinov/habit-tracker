@@ -133,8 +133,15 @@ test.describe('добавление привычки (AC-1, AC-2)', () => {
     await addHabit(page, '<b>жирный</b><img src=x>');
     const card = cards(page).first();
     expect(await card.getByTestId('habit-name').textContent()).toBe('<b>жирный</b><img src=x>');
+    // Название — только текст, без дочерних элементов.
+    await expect(card.locator('[data-testid="habit-name"] *')).toHaveCount(0);
     await expect(card.locator('b')).toHaveCount(0);
-    await expect(card.locator('img')).toHaveCount(0);
+    await expect(card.locator('img[src="x"]')).toHaveCount(0);
+    // Единственная картинка — эмодзи Noto (AC-37) в месте эмодзи; по умолчанию ⭐.
+    await expect(card.locator('img')).toHaveCount(1);
+    const emojiImg = card.locator('[data-testid="habit-emoji"] img.emoji-img');
+    await expect(emojiImg).toHaveCount(1);
+    await expect(emojiImg).toHaveAttribute('src', 'emoji/2b50.svg');
   });
 });
 

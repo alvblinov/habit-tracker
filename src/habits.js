@@ -2,6 +2,7 @@
 
 import { addDays } from './dates.js';
 import { ALL_DAYS, normalizeDays, isScheduled, weekdayOf } from './schedule.js';
+import { normalizeColor, nextFreeColor } from './colors.js';
 
 export const EMOJIS = ['💧', '📚', '🏃', '🧘', '🥗', '😴', '✍️', '💊', '🎸', '🧹', '🌱', '⭐'];
 export const DEFAULT_EMOJI = '⭐';
@@ -39,6 +40,8 @@ export function addHabit(state, { name, emoji } = {}, { id, todayKey } = {}) {
     done: [],
     reminder: null,
     days: [...ALL_DAYS],
+    // Первый свободный цвет палитры (все заняты — по кругу).
+    color: nextFreeColor(state.habits),
   };
   return { ...state, habits: [...state.habits, habit] };
 }
@@ -115,12 +118,13 @@ function sameDays(a, b) {
 }
 
 /**
- * Изменяет название, эмодзи и (если передано) расписание привычки по правилам addHabit.
- * days нормализуется через normalizeDays (пустой/битый набор → все 7 дней).
+ * Изменяет название, эмодзи и (если переданы) расписание и цвет привычки по правилам addHabit.
+ * days нормализуется через normalizeDays (пустой/битый набор → все 7 дней);
+ * color — через normalizeColor (ключ не из палитры → цвет не меняется).
  * id, done, createdAt и reminder не трогаются. Невалидное имя, неизвестный id
  * или неизменённые значения → возвращается исходное состояние.
  */
-export function updateHabit(state, id, { name, emoji, days } = {}) {
+export function updateHabit(state, id, { name, emoji, days, color } = {}) {
   const habit = state.habits.find((h) => h.id === id);
   if (!habit) return state;
   const normalized = normalizeName(name);
@@ -129,13 +133,16 @@ export function updateHabit(state, id, { name, emoji, days } = {}) {
   const finalEmoji = normalizeEmoji(emoji);
   const finalDays = days === undefined ? null : normalizeDays(days);
   const daysChanged = finalDays !== null && !sameDays(finalDays, normalizeDays(habit.days));
-  if (finalName === habit.name && finalEmoji === habit.emoji && !daysChanged) return state;
+  const finalColor = color === undefined ? null : normalizeColor(color);
+  const colorChanged = finalColor !== null && finalColor !== habit.color;
+  if (finalName === habit.name && finalEmoji === habit.emoji && !daysChanged && !colorChanged) return state;
   return {
     ...state,
     habits: state.habits.map((h) => {
       if (h.id !== id) return h;
       const next = { ...h, name: finalName, emoji: finalEmoji };
       if (finalDays !== null) next.days = finalDays;
+      if (finalColor !== null) next.color = finalColor;
       return next;
     }),
   };

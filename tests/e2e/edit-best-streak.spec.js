@@ -379,6 +379,20 @@ test.describe('редактирование: правила названия (AC
     expect(await card.getByTestId('habit-name').textContent()).toBe('ж'.repeat(40));
   });
 
+  /**
+   * Название — только текст: у названия нет дочерних элементов, <b> и <img src=x> нет;
+   * единственная картинка в карточке — эмодзи Noto 📚 (AC-37) в месте эмодзи.
+   */
+  async function expectNameIsPlainText(card) {
+    await expect(card.locator('[data-testid="habit-name"] *')).toHaveCount(0);
+    await expect(card.locator('b')).toHaveCount(0);
+    await expect(card.locator('img[src="x"]')).toHaveCount(0);
+    await expect(card.locator('img')).toHaveCount(1);
+    const emojiImg = card.locator('[data-testid="habit-emoji"] img.emoji-img');
+    await expect(emojiImg).toHaveCount(1);
+    await expect(emojiImg).toHaveAttribute('src', 'emoji/1f4da.svg');
+  }
+
   test('HTML в новом названии выводится как текст', async ({ page }) => {
     const errors = collectErrors(page);
     await seedStorage(page, seeded());
@@ -389,11 +403,11 @@ test.describe('редактирование: правила названия (AC
     await card.getByTestId('edit-name-input').fill(name);
     await card.getByTestId('edit-save').click();
     expect(await card.getByTestId('habit-name').textContent()).toBe(name);
-    await expect(card.locator('b, img')).toHaveCount(0);
+    await expectNameIsPlainText(card);
 
     await page.reload();
     expect(await cardById(page, 'h1').getByTestId('habit-name').textContent()).toBe(name);
-    await expect(cardById(page, 'h1').locator('b, img')).toHaveCount(0);
+    await expectNameIsPlainText(cardById(page, 'h1'));
     expect(errors).toEqual([]);
   });
 });

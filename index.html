@@ -4,10 +4,60 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Трекер привычек</title>
+    <script>
+      // Ручной выбор темы ставится до отрисовки, чтобы не было вспышки другой темы.
+      // Без выбора атрибут не ставится — работает системная тема (prefers-color-scheme).
+      (function () {
+        try {
+          var theme = window.localStorage.getItem('habit-tracker:theme');
+          if (theme === 'light' || theme === 'dark') {
+            document.documentElement.setAttribute('data-theme', theme);
+          }
+        } catch (e) {
+          // Хранилище недоступно — остаётся системная тема.
+        }
+      })();
+    </script>
   </head>
   <body>
     <main id="app">
-      <h1>Трекер привычек</h1>
+      <header class="app-header">
+        <div
+          class="progress-ring"
+          data-testid="progress-ring"
+          data-done="0"
+          data-total="0"
+          data-complete="false"
+          aria-hidden="true"
+        >
+          <svg class="progress-ring-svg" viewBox="0 0 48 48" focusable="false">
+            <circle class="progress-ring-track" cx="24" cy="24" r="20" />
+            <circle
+              id="progress-ring-value"
+              class="progress-ring-value"
+              cx="24"
+              cy="24"
+              r="20"
+              pathLength="100"
+              stroke-dasharray="0 100"
+            />
+          </svg>
+          <span id="progress-ring-label" class="progress-ring-label" data-testid="progress-ring-label">0/0</span>
+        </div>
+        <div class="app-heading">
+          <h1>Трекер привычек</h1>
+          <p id="today-summary" class="summary" data-testid="today-summary" aria-live="polite"></p>
+        </div>
+        <button
+          id="theme-toggle"
+          type="button"
+          class="theme-toggle"
+          data-testid="theme-toggle"
+          aria-pressed="false"
+          aria-label="Включить тёмную тему"
+          title="Включить тёмную тему"
+        >🌙</button>
+      </header>
 
       <button
         id="stats-toggle"
@@ -62,13 +112,16 @@
         <button type="submit" class="add-button" data-testid="add-habit">Добавить</button>
       </form>
 
-      <p id="today-summary" class="summary" data-testid="today-summary" aria-live="polite"></p>
-
       <p id="reminder-hint" class="reminder-hint" data-testid="reminder-hint" hidden>Напоминания приходят, пока эта вкладка открыта</p>
 
       <p id="empty-state" class="empty-state" data-testid="empty-state" hidden>Добавьте первую привычку</p>
       <ul id="habit-list" class="habit-list"></ul>
     </main>
+    <footer class="app-footer" data-testid="emoji-credit">
+      Эмодзи:
+      <a href="https://googlefonts.github.io/noto-emoji-animation/" target="_blank" rel="noopener">Google Noto</a>
+      (CC BY 4.0, Apache 2.0)
+    </footer>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

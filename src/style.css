@@ -1,37 +1,302 @@
+/*
+ * Оформление «мягкий минимализм».
+ * Все цвета интерфейса — через переменные темы. Светлая тема — на :root,
+ * тёмная — при data-theme="dark" на <html> или по системной настройке,
+ * если тема не выбрана вручную (нет data-theme="light").
+ * Контраст основного текста к фону — не ниже WCAG AA (4.5:1) в обеих темах.
+ */
+
 :root {
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: #1f2328;
-  background: #f6f8fa;
-  --accent: #2da44e;
-  --accent-dark: #1a7f37;
-  --border: #d0d7de;
-  --muted: #656d76;
-  --danger: #cf222e;
+  color-scheme: light;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
+    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji';
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg);
+
+  --bg: #fbfaf7;
+  --surface: #ffffff;
+  --surface-2: #f5f3ef;
+  --text: #1f1d1a;
+  --muted: #67625a;
+  --border: #e7e3dc;
+  --border-strong: #d6d1c8;
+  --accent: #0f766e;
+  --accent-hover: #0b5f59;
+  --on-accent: #ffffff;
+  --danger: #b42318;
+  --focus: #2563eb;
+  --today: #2563eb;
+  --success: #2f9e57;
+  --success-text: #1e7a3f;
+  --reminder: #1d5fbf;
+  --reminder-soft: #e5eefc;
+  --banner-bg: #fff4d2;
+  --banner-border: #e0b43a;
+  --best: #8a5a00;
+  --cell-empty: #ece9e3;
+  --cell-off-a: #f3f1ec;
+  --cell-off-b: #e2ded6;
+  --ring-track: #ece9e3;
+  --on-habit: #1f1d1a;
+  --shadow: 0 1px 2px rgb(31 29 26 / 0.04), 0 6px 20px rgb(31 29 26 / 0.06);
+  --radius-card: 18px;
+  --radius-control: 12px;
+  --blob-teal: rgb(127 209 196 / 0.28);
+  --blob-purple: rgb(185 166 242 / 0.26);
+  --blob-coral: rgb(245 164 138 / 0.24);
+
+  /* Палитра привычек: основной цвет / мягкая плашка / насыщенный (текст и рамки). */
+  --c-teal: #7fd1c4;
+  --c-teal-soft: #e2f4f1;
+  --c-teal-strong: #0f6b60;
+  --c-purple: #b9a6f2;
+  --c-purple-soft: #eee9fd;
+  --c-purple-strong: #5b3fbf;
+  --c-coral: #f5a48a;
+  --c-coral-soft: #fdeae3;
+  --c-coral-strong: #a8401f;
+  --c-pink: #f0a5c6;
+  --c-pink-soft: #fce7f0;
+  --c-pink-strong: #a3305f;
+  --c-blue: #93bdf5;
+  --c-blue-soft: #e5effd;
+  --c-blue-strong: #1f5bb5;
+  --c-green: #9dd49b;
+  --c-green-soft: #e6f4e5;
+  --c-green-strong: #2e6b2c;
+  --c-amber: #f2c766;
+  --c-amber-soft: #fcf2da;
+  --c-amber-strong: #8a5a00;
+  --c-gray: #afa9a0;
+  --c-gray-soft: #efede9;
+  --c-gray-strong: #5c574f;
+}
+
+/* Тёмная тема: выбрана вручную. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #161513;
+  --surface: #211f1c;
+  --surface-2: #2a2824;
+  --text: #f2efea;
+  --muted: #aba59c;
+  --border: #34312d;
+  --border-strong: #4a4640;
+  --accent: #5ec4b6;
+  --accent-hover: #7ad3c7;
+  --on-accent: #10201e;
+  --danger: #ff8a80;
+  --focus: #7fb0ff;
+  --today: #7fb0ff;
+  --success: #4cc77a;
+  --success-text: #6edb96;
+  --reminder: #8db8ff;
+  --reminder-soft: #1e2a3d;
+  --banner-bg: #3a3016;
+  --banner-border: #8a6d1f;
+  --best: #f0c060;
+  --cell-empty: #302d29;
+  --cell-off-a: #24221f;
+  --cell-off-b: #34312c;
+  --ring-track: #34312d;
+  --on-habit: #161513;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 20px rgb(0 0 0 / 0.25);
+  --blob-teal: rgb(108 196 182 / 0.1);
+  --blob-purple: rgb(171 152 236 / 0.1);
+  --blob-coral: rgb(238 152 126 / 0.08);
+
+  --c-teal: #6cc4b6;
+  --c-teal-soft: #1d3532;
+  --c-teal-strong: #8bdacd;
+  --c-purple: #ab98ec;
+  --c-purple-soft: #2c2840;
+  --c-purple-strong: #c3b4f5;
+  --c-coral: #ee987e;
+  --c-coral-soft: #3e2a23;
+  --c-coral-strong: #f5ae97;
+  --c-pink: #e89bbe;
+  --c-pink-soft: #3d2631;
+  --c-pink-strong: #f2b2cf;
+  --c-blue: #86b0ee;
+  --c-blue-soft: #1f2c40;
+  --c-blue-strong: #9dc2f7;
+  --c-green: #8cc88b;
+  --c-green-soft: #23331f;
+  --c-green-strong: #a3d9a2;
+  --c-amber: #e8bc5e;
+  --c-amber-soft: #3a3120;
+  --c-amber-strong: #f2cb78;
+  --c-gray: #aba59c;
+  --c-gray-soft: #2e2c29;
+  --c-gray-strong: #c4bfb7;
+}
+
+/* Тёмная тема по системной настройке, если вручную не выбрана светлая. Значения те же. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #161513;
+    --surface: #211f1c;
+    --surface-2: #2a2824;
+    --text: #f2efea;
+    --muted: #aba59c;
+    --border: #34312d;
+    --border-strong: #4a4640;
+    --accent: #5ec4b6;
+    --accent-hover: #7ad3c7;
+    --on-accent: #10201e;
+    --danger: #ff8a80;
+    --focus: #7fb0ff;
+    --today: #7fb0ff;
+    --success: #4cc77a;
+    --success-text: #6edb96;
+    --reminder: #8db8ff;
+    --reminder-soft: #1e2a3d;
+    --banner-bg: #3a3016;
+    --banner-border: #8a6d1f;
+    --best: #f0c060;
+    --cell-empty: #302d29;
+    --cell-off-a: #24221f;
+    --cell-off-b: #34312c;
+    --ring-track: #34312d;
+    --on-habit: #161513;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 20px rgb(0 0 0 / 0.25);
+    --blob-teal: rgb(108 196 182 / 0.1);
+    --blob-purple: rgb(171 152 236 / 0.1);
+    --blob-coral: rgb(238 152 126 / 0.08);
+
+    --c-teal: #6cc4b6;
+    --c-teal-soft: #1d3532;
+    --c-teal-strong: #8bdacd;
+    --c-purple: #ab98ec;
+    --c-purple-soft: #2c2840;
+    --c-purple-strong: #c3b4f5;
+    --c-coral: #ee987e;
+    --c-coral-soft: #3e2a23;
+    --c-coral-strong: #f5ae97;
+    --c-pink: #e89bbe;
+    --c-pink-soft: #3d2631;
+    --c-pink-strong: #f2b2cf;
+    --c-blue: #86b0ee;
+    --c-blue-soft: #1f2c40;
+    --c-blue-strong: #9dc2f7;
+    --c-green: #8cc88b;
+    --c-green-soft: #23331f;
+    --c-green-strong: #a3d9a2;
+    --c-amber: #e8bc5e;
+    --c-amber-soft: #3a3120;
+    --c-amber-strong: #f2cb78;
+    --c-gray: #aba59c;
+    --c-gray-soft: #2e2c29;
+    --c-gray-strong: #c4bfb7;
+  }
+}
+
+/* Цвет привычки: data-color (только ключ палитры) задаёт --habit* для потомков. */
+[data-color='teal'] {
+  --habit: var(--c-teal);
+  --habit-soft: var(--c-teal-soft);
+  --habit-strong: var(--c-teal-strong);
+}
+
+[data-color='purple'] {
+  --habit: var(--c-purple);
+  --habit-soft: var(--c-purple-soft);
+  --habit-strong: var(--c-purple-strong);
+}
+
+[data-color='coral'] {
+  --habit: var(--c-coral);
+  --habit-soft: var(--c-coral-soft);
+  --habit-strong: var(--c-coral-strong);
+}
+
+[data-color='pink'] {
+  --habit: var(--c-pink);
+  --habit-soft: var(--c-pink-soft);
+  --habit-strong: var(--c-pink-strong);
+}
+
+[data-color='blue'] {
+  --habit: var(--c-blue);
+  --habit-soft: var(--c-blue-soft);
+  --habit-strong: var(--c-blue-strong);
+}
+
+[data-color='green'] {
+  --habit: var(--c-green);
+  --habit-soft: var(--c-green-soft);
+  --habit-strong: var(--c-green-strong);
+}
+
+[data-color='amber'] {
+  --habit: var(--c-amber);
+  --habit-soft: var(--c-amber-soft);
+  --habit-strong: var(--c-amber-strong);
+}
+
+[data-color='gray'] {
+  --habit: var(--c-gray);
+  --habit-soft: var(--c-gray-soft);
+  --habit-strong: var(--c-gray-strong);
 }
 
 * {
   box-sizing: border-box;
 }
 
+/* Фон страницы (--bg) задан на :root; body прозрачен, чтобы под ним были видны пятна. */
 body {
+  position: relative;
   margin: 0;
   min-width: 320px;
+  color: var(--text);
+  background: transparent;
+}
+
+/* Неподвижные размытые пастельные пятна: бирюзовое, фиолетовое, коралловое.
+ * Бледные, чтобы текст вне карточек сохранял контраст; карточки непрозрачные. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 12% 18%, var(--blob-teal) 0, transparent 34%),
+    radial-gradient(circle at 88% 30%, var(--blob-purple) 0, transparent 36%),
+    radial-gradient(circle at 30% 92%, var(--blob-coral) 0, transparent 38%);
+  filter: blur(40px);
 }
 
 #app {
   max-width: 720px;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: 24px 16px 48px;
 }
 
 h1 {
-  margin: 0 0 16px;
-  font-size: 1.75rem;
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 button {
   font: inherit;
+  color: inherit;
   cursor: pointer;
+}
+
+input,
+select {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .visually-hidden {
@@ -46,15 +311,221 @@ button {
   border: 0;
 }
 
+/* Эмодзи картинкой Noto (символ рядом в visually-hidden тексте). */
+.emoji-img {
+  display: block;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  user-select: none;
+}
+
+.habit-emoji .emoji-img {
+  width: 30px;
+  height: 30px;
+}
+
+.stats-emoji {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.stats-emoji .emoji-img {
+  width: 1.25em;
+  height: 1.25em;
+}
+
+/* «Подпрыгивание» эмодзи без анимации Noto (🏃 🧘 💊). */
+@media (prefers-reduced-motion: no-preference) {
+  .emoji-img.is-bounce {
+    animation: emoji-bounce 0.65s ease-in-out 3;
+  }
+}
+
+@keyframes emoji-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  30% {
+    transform: translateY(-6px) scale(1.08);
+  }
+
+  55% {
+    transform: translateY(0) scale(0.96);
+  }
+
+  75% {
+    transform: translateY(-2px) scale(1.02);
+  }
+}
+
+/* Подвал: авторство эмодзи. */
+.app-footer {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 16px 28px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.app-footer a {
+  color: var(--accent);
+}
+
+/* Общий вид второстепенных кнопок. */
+.stats-toggle,
+.stats-period,
+.reminder-toggle,
+.edit-habit,
+.delete-habit,
+.edit-cancel,
+.reminder-remove-time,
+.reminder-add-time,
+.reminder-cancel,
+.reminder-off,
+.reminder-banner-close,
+.theme-toggle {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.stats-toggle:hover,
+.stats-period:hover,
+.reminder-toggle:hover,
+.edit-habit:hover,
+.edit-cancel:hover,
+.reminder-remove-time:hover:not(:disabled),
+.reminder-add-time:hover:not(:disabled),
+.reminder-cancel:hover,
+.reminder-off:hover,
+.reminder-banner-close:hover,
+.theme-toggle:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.08);
+}
+
+/* Основные кнопки (действие). */
+.add-button,
+.edit-save,
+.reminder-save {
+  color: var(--on-accent);
+  background: var(--accent);
+  border: 0;
+  border-radius: var(--radius-control);
+  font-weight: 600;
+}
+
+.add-button:hover,
+.edit-save:hover,
+.reminder-save:hover {
+  background: var(--accent-hover);
+}
+
+/* --- Шапка: кольцо прогресса, заголовок, переключатель темы --- */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.app-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.progress-ring {
+  position: relative;
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+}
+
+.progress-ring-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.progress-ring-track,
+.progress-ring-value {
+  fill: none;
+  stroke-width: 5;
+}
+
+.progress-ring-track {
+  stroke: var(--ring-track);
+}
+
+.progress-ring-value {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.35s ease, stroke 0.2s ease;
+}
+
+/* Пустое кольцо (0/0 или 0 из Y): без точки от скруглённого конца линии. */
+.progress-ring[data-done='0'] .progress-ring-value {
+  stroke-linecap: butt;
+}
+
+.progress-ring[data-complete='true'] .progress-ring-value {
+  stroke: var(--success);
+}
+
+.progress-ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.progress-ring[data-complete='true'] .progress-ring-label {
+  color: var(--success-text);
+}
+
+.summary {
+  margin: 2px 0 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.theme-toggle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  box-shadow: var(--shadow);
+}
+
 /* --- Форма добавления --- */
 
 .add-form {
   display: grid;
-  gap: 8px;
-  padding: 16px;
-  background: #fff;
+  gap: 10px;
+  padding: 18px;
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow);
 }
 
 .field-label {
@@ -64,15 +535,23 @@ button {
 
 .name-input {
   width: 100%;
-  padding: 10px 12px;
+  padding: 11px 14px;
   font: inherit;
+  color: var(--text);
+  background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.name-input::placeholder {
+  color: var(--muted);
 }
 
 .name-input:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+  border-color: transparent;
 }
 
 .emoji-picker {
@@ -101,93 +580,94 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  font-size: 1.4rem;
-  border: 2px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
+  width: 42px;
+  height: 42px;
+  font-size: 1.35rem;
+  border: 2px solid transparent;
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.emoji-option:hover .emoji-option-face {
+  border-color: var(--border-strong);
 }
 
 .emoji-option input:checked + .emoji-option-face {
   border-color: var(--accent);
-  background: #dafbe1;
+  background: var(--surface);
 }
 
 .emoji-option input:focus-visible + .emoji-option-face {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
 .add-button {
   justify-self: start;
-  padding: 10px 20px;
-  color: #fff;
-  background: var(--accent);
-  border: 0;
-  border-radius: 8px;
-  font-weight: 600;
+  padding: 10px 22px;
 }
 
-.add-button:hover {
-  background: var(--accent-dark);
-}
-
-/* --- Сводка и пустое состояние --- */
-
-.summary {
-  margin: 20px 0 12px;
-  font-size: 1.1rem;
-  font-weight: 600;
-}
+/* --- Пустое состояние --- */
 
 .empty-state {
-  padding: 24px;
+  padding: 28px;
   text-align: center;
   color: var(--muted);
-  background: #fff;
-  border: 1px dashed var(--border);
-  border-radius: 12px;
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-card);
 }
 
 /* --- Карточки привычек --- */
 
 .habit-list {
   display: grid;
-  gap: 12px;
-  margin: 0;
+  gap: 14px;
+  margin: 20px 0 0;
   padding: 0;
   list-style: none;
 }
 
 .habit-card {
   display: grid;
-  gap: 10px;
-  padding: 16px;
-  background: #fff;
+  gap: 12px;
+  padding: 18px;
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow);
 }
 
 .habit-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 4px 12px;
+  gap: 6px 12px;
 }
 
 .habit-title {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 4px 10px;
   align-items: center;
   margin: 0;
   font-size: 1.15rem;
+  font-weight: 650;
   min-width: 0;
 }
 
+/* Плашка под эмодзи — мягкий цвет привычки. */
 .habit-emoji {
-  font-size: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  font-size: 1.4rem;
+  border-radius: 14px;
+  background: var(--habit-soft, var(--surface-2));
 }
 
 .habit-name {
@@ -203,29 +683,34 @@ button {
 .habit-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
 }
 
+/* Кнопка «Сегодня» — «пилюля» в цвете привычки. */
 .toggle-today {
-  padding: 8px 16px;
-  border: 2px solid var(--accent);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--accent-dark);
+  padding: 8px 18px;
+  border: 2px solid var(--habit-strong, var(--accent));
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--habit-strong, var(--accent));
   font-weight: 600;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.toggle-today:hover {
+  box-shadow: 0 0 0 3px var(--habit-soft, var(--surface-2));
 }
 
 .toggle-today[aria-pressed='true'] {
-  background: var(--accent);
-  color: #fff;
+  background: var(--habit, var(--accent));
+  border-color: var(--habit, var(--accent));
+  color: var(--on-habit);
 }
 
 .delete-habit {
   margin-left: auto;
   padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
   color: var(--danger);
 }
 
@@ -238,7 +723,7 @@ button {
 .day-grid {
   display: grid;
   grid-template-columns: repeat(10, 1fr);
-  gap: 4px;
+  gap: 5px;
 }
 
 @media (min-width: 560px) {
@@ -251,23 +736,71 @@ button {
   aspect-ratio: 1;
   min-width: 0;
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: #ebedf0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--cell-empty);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
 }
 
 .day-cell:hover {
-  border-color: var(--accent);
+  border-color: var(--habit-strong, var(--accent));
 }
 
 .day-cell.is-done {
-  background: var(--accent);
-  border-color: var(--accent-dark);
+  background: var(--habit, var(--accent));
+  border-color: var(--habit-strong, var(--accent));
 }
 
 .day-cell.is-today {
-  outline: 2px solid #0969da;
+  outline: 2px solid var(--today);
   outline-offset: 1px;
+}
+
+/* Выходной по расписанию: бледнее, со штриховкой, но кликабелен. */
+.day-cell.is-off {
+  opacity: 0.55;
+  background: repeating-linear-gradient(
+    45deg,
+    var(--cell-off-a),
+    var(--cell-off-a) 3px,
+    var(--cell-off-b) 3px,
+    var(--cell-off-b) 6px
+  );
+}
+
+.day-cell.is-off.is-done {
+  opacity: 0.8;
+  background: var(--habit, var(--accent));
+}
+
+/* Мягкая анимация отметки — только у только что переключённого элемента. */
+@media (prefers-reduced-motion: no-preference) {
+  .is-pop {
+    animation: habit-pop 0.24s ease-out;
+  }
+}
+
+@keyframes habit-pop {
+  0% {
+    transform: scale(0.88);
+  }
+
+  60% {
+    transform: scale(1.06);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 
 /* --- Напоминания --- */
@@ -275,7 +808,7 @@ button {
 .reminder-banners {
   display: grid;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .reminder-banners:empty {
@@ -289,9 +822,10 @@ button {
   justify-content: space-between;
   gap: 8px 12px;
   padding: 12px 16px;
-  background: #fff8c5;
-  border: 1px solid #d4a72c;
-  border-radius: 12px;
+  color: var(--text);
+  background: var(--banner-bg);
+  border: 1px solid var(--banner-border);
+  border-radius: var(--radius-card);
   font-weight: 600;
 }
 
@@ -302,47 +836,42 @@ button {
 
 .reminder-banner-close {
   padding: 6px 14px;
-  border: 1px solid #d4a72c;
-  border-radius: 8px;
-  background: #fff;
+  border-color: var(--banner-border);
 }
 
 .reminder-hint {
-  margin: 0 0 12px;
+  margin: 14px 0 0;
   color: var(--muted);
   font-size: 0.9rem;
 }
 
 .reminder-toggle {
   padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
 }
 
 .reminder-toggle.is-active {
-  border-color: #0969da;
-  background: #ddf4ff;
+  border-color: var(--reminder);
+  background: var(--reminder-soft);
 }
 
 .reminder-toggle[aria-expanded='true'] {
-  outline: 2px solid #0969da;
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 
 .reminder-label {
   margin: 0;
-  color: #0969da;
+  color: var(--reminder);
   font-size: 0.95rem;
 }
 
 .reminder-panel {
   display: grid;
   gap: 10px;
-  padding: 12px;
-  background: #f6f8fa;
+  padding: 14px;
+  background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
 }
 
 .reminder-modes {
@@ -385,9 +914,10 @@ button {
 .reminder-time-input {
   padding: 6px 8px;
   font: inherit;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
 }
 
 .reminder-remove-time,
@@ -395,9 +925,6 @@ button {
 .reminder-cancel,
 .reminder-off {
   padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
 }
 
 .reminder-remove-time:disabled,
@@ -412,11 +939,6 @@ button {
 
 .reminder-save {
   padding: 6px 16px;
-  color: #fff;
-  background: var(--accent);
-  border: 0;
-  border-radius: 8px;
-  font-weight: 600;
 }
 
 .reminder-error {
@@ -435,7 +957,7 @@ button {
 
 .habit-best-streak {
   margin: 0;
-  color: #9a6700;
+  color: var(--best);
   font-weight: 600;
 }
 
@@ -443,19 +965,16 @@ button {
 
 .edit-habit {
   padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
 }
 
 .edit-habit[aria-expanded='true'] {
-  outline: 2px solid #0969da;
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 
 .edit-form {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   flex: 1 1 100%;
   min-width: 0;
 }
@@ -468,22 +987,45 @@ button {
 
 .edit-save {
   padding: 6px 16px;
-  color: #fff;
-  background: var(--accent);
-  border: 0;
-  border-radius: 8px;
-  font-weight: 600;
-}
-
-.edit-save:hover {
-  background: var(--accent-dark);
 }
 
 .edit-cancel {
   padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
+}
+
+/* Выбор цвета привычки: 8 кружков палитры. */
+.color-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.color-option {
+  position: relative;
+  cursor: pointer;
+}
+
+.color-option-swatch {
+  display: block;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--habit);
+  border: 2px solid var(--habit-strong);
+  transition: box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.color-option:hover .color-option-swatch {
+  transform: scale(1.08);
+}
+
+.color-option input:checked + .color-option-swatch {
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--text);
+}
+
+.color-option input:focus-visible + .color-option-swatch {
+  outline: 2px solid var(--focus);
+  outline-offset: 5px;
 }
 
 /* --- Расписание по дням недели --- */
@@ -512,45 +1054,32 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
+  padding: 4px 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
+  border-radius: 999px;
+  background: var(--surface-2);
   cursor: pointer;
 }
 
 .edit-day-option:has(input:checked) {
   border-color: var(--accent);
-  background: #dafbe1;
+  background: var(--surface);
 }
 
 .edit-day-option:has(input:disabled) {
   cursor: not-allowed;
 }
 
-/* Выходной по расписанию: бледнее, но кликабелен. */
-.day-cell.is-off {
-  opacity: 0.45;
-  background: repeating-linear-gradient(45deg, #ebedf0, #ebedf0 3px, #f6f8fa 3px, #f6f8fa 6px);
-}
-
-.day-cell.is-off.is-done {
-  background: var(--accent);
-}
-
 /* --- Статистика --- */
 
 .stats-toggle {
-  margin-bottom: 12px;
-  padding: 8px 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
+  margin-bottom: 14px;
+  padding: 8px 16px;
   font-weight: 600;
 }
 
 .stats-toggle[aria-expanded='true'] {
-  outline: 2px solid #0969da;
+  outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
 
@@ -558,10 +1087,11 @@ button {
   display: grid;
   gap: 12px;
   margin-bottom: 16px;
-  padding: 16px;
-  background: #fff;
+  padding: 18px;
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow);
 }
 
 .stats-panel[hidden],
@@ -576,16 +1106,14 @@ button {
 }
 
 .stats-period {
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
+  padding: 6px 14px;
+  border-radius: 999px;
 }
 
 .stats-period[aria-pressed='true'] {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 600;
 }
 
@@ -608,7 +1136,7 @@ button {
 
 .stats-table th,
 .stats-table td {
-  padding: 6px 4px;
+  padding: 8px 6px;
   text-align: left;
   border-bottom: 1px solid var(--border);
 }
@@ -618,8 +1146,11 @@ button {
   font-weight: 600;
 }
 
+/* Строка статистики: цветная полоска слева и шкала в цвете привычки. */
 .stats-habit {
   overflow-wrap: anywhere;
+  box-shadow: inset 4px 0 0 var(--habit, var(--accent));
+  padding-left: 12px;
 }
 
 .stats-percent-cell {
@@ -633,10 +1164,56 @@ button {
 
 .stats-meter {
   width: 80px;
+  height: 10px;
   vertical-align: middle;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: var(--cell-empty);
+  overflow: hidden;
+}
+
+.stats-meter::-webkit-meter-bar {
+  background: var(--cell-empty);
+  border: 0;
+  border-radius: 999px;
+}
+
+.stats-meter::-webkit-meter-optimum-value,
+.stats-meter::-webkit-meter-suboptimum-value,
+.stats-meter::-webkit-meter-even-less-good-value {
+  background: var(--habit, var(--accent));
+  border-radius: 999px;
+}
+
+.stats-meter::-moz-meter-bar {
+  background: var(--habit, var(--accent));
+  border-radius: 999px;
 }
 
 .stats-empty {
   margin: 0;
   color: var(--muted);
+}
+
+/* Узкий экран: компактнее шапка и карточки. */
+@media (max-width: 420px) {
+  #app {
+    padding: 16px 12px 40px;
+  }
+
+  h1 {
+    font-size: 1.35rem;
+  }
+
+  .progress-ring {
+    width: 56px;
+    height: 56px;
+  }
+
+  .habit-card,
+  .add-form,
+  .stats-panel {
+    padding: 14px;
+  }
 }
