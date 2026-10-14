@@ -381,7 +381,8 @@ test.describe('редактирование: правила названия (AC
 
   /**
    * Название — только текст: у названия нет дочерних элементов, <b> и <img src=x> нет;
-   * единственная картинка в карточке — эмодзи Noto 📚 (AC-37) в месте эмодзи.
+   * единственная картинка в карточке — эмодзи Noto 📚 (AC-37) в месте эмодзи; на карточке —
+   * анимированный WebP (AC-38 в редакции 14.10.2026; reducedMotion по умолчанию no-preference).
    */
   async function expectNameIsPlainText(card) {
     await expect(card.locator('[data-testid="habit-name"] *')).toHaveCount(0);
@@ -390,7 +391,7 @@ test.describe('редактирование: правила названия (AC
     await expect(card.locator('img')).toHaveCount(1);
     const emojiImg = card.locator('[data-testid="habit-emoji"] img.emoji-img');
     await expect(emojiImg).toHaveCount(1);
-    await expect(emojiImg).toHaveAttribute('src', 'emoji/1f4da.svg');
+    await expect(emojiImg).toHaveAttribute('src', 'emoji/1f4da.webp');
   }
 
   test('HTML в новом названии выводится как текст', async ({ page }) => {

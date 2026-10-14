@@ -335,10 +335,10 @@ select {
   height: 1.25em;
 }
 
-/* «Подпрыгивание» эмодзи без анимации Noto (🏃 🧘 💊). */
+/* Короткое «подпрыгивание» эмодзи карточки после отметки сегодняшнего дня. */
 @media (prefers-reduced-motion: no-preference) {
   .emoji-img.is-bounce {
-    animation: emoji-bounce 0.65s ease-in-out 3;
+    animation: emoji-bounce 0.6s ease-in-out;
   }
 }
 

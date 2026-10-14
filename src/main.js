@@ -89,60 +89,77 @@ let statsPeriod = DEFAULT_PERIOD;
 // Только что переключённая отметка (кнопка «Сегодня» или клетка) — для короткой анимации.
 let popTarget = null;
 
-// «Оживление» эмодзи после отметки сегодняшнего дня: { habitId, until } в памяти модуля.
-const EMOJI_ANIMATION_MS = 2000;
-let emojiAnimation = null;
-let emojiAnimationTimer = null;
+// Эмодзи на карточках анимированы всегда (Noto *.webp, у 🏃 🧘 💊 — статичный *.svg).
+// После отметки сегодняшнего дня — короткое «подпрыгивание»: id привычки в памяти модуля.
+const EMOJI_BOUNCE_MS = 600;
+let bounceHabitId = null;
+let bounceTimer = null;
 
 function prefersReducedMotion() {
   return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 // Запускается только при переходе сегодняшнего дня в «выполнено».
-function startEmojiAnimation(habitId) {
+function startEmojiBounce(habitId) {
   if (prefersReducedMotion()) return;
-  emojiAnimation = { habitId, until: Date.now() + EMOJI_ANIMATION_MS };
-  if (emojiAnimationTimer !== null) clearTimeout(emojiAnimationTimer);
-  emojiAnimationTimer = setTimeout(() => {
-    emojiAnimationTimer = null;
-    emojiAnimation = null;
-    render();
-  }, EMOJI_ANIMATION_MS);
+  bounceHabitId = habitId;
+  if (bounceTimer !== null) clearTimeout(bounceTimer);
+  bounceTimer = setTimeout(() => {
+    bounceTimer = null;
+    bounceHabitId = null;
+    clearEmojiBounce(habitId);
+  }, EMOJI_BOUNCE_MS);
+}
+
+// Точечно снимает эффект с карточки без полной перерисовки (статистика и карточки не пересоздаются).
+// bounceHabitId уже сброшен, поэтому следующий render() эффект не вернёт.
+function clearEmojiBounce(habitId) {
+  const plate = findCard(habitId)?.querySelector('.habit-emoji');
+  if (!plate) return;
+  delete plate.dataset.bounce;
+  plate.querySelector('.emoji-img')?.classList.remove('is-bounce');
 }
 
 // Снятие сегодняшней отметки прекращает эффект этой привычки.
-function stopEmojiAnimation(habitId) {
-  if (emojiAnimation === null || emojiAnimation.habitId !== habitId) return;
-  emojiAnimation = null;
-  if (emojiAnimationTimer !== null) clearTimeout(emojiAnimationTimer);
-  emojiAnimationTimer = null;
+function stopEmojiBounce(habitId) {
+  if (bounceHabitId !== habitId) return;
+  bounceHabitId = null;
+  if (bounceTimer !== null) clearTimeout(bounceTimer);
+  bounceTimer = null;
 }
 
-// Сегодняшний день переключён: отметка — запустить эффект, снятие — остановить.
+// Сегодняшний день переключён: отметка — эффект, снятие — без эффекта.
 function onTodayToggled(habitId, todayKey, next) {
   if (next === state) return;
   const updated = next.habits.find((h) => h.id === habitId);
-  if (updated && isDone(updated, todayKey)) startEmojiAnimation(habitId);
-  else stopEmojiAnimation(habitId);
+  if (updated && isDone(updated, todayKey)) startEmojiBounce(habitId);
+  else stopEmojiBounce(habitId);
 }
 
-function isEmojiAnimating(habitId) {
-  return emojiAnimation !== null && emojiAnimation.habitId === habitId && Date.now() < emojiAnimation.until;
+// Картинка эмодзи на карточке: анимация Noto, если она есть и движение не уменьшено.
+function cardEmojiUrl(char) {
+  if (prefersReducedMotion()) return staticEmojiUrl(char);
+  return animatedEmojiUrl(char) ?? staticEmojiUrl(char);
 }
 
-// Эмодзи картинкой Noto: <img> скрыт от чтения с экрана, символ — в visually-hidden тексте,
-// поэтому textContent элемента остаётся прежним символом. Символ — только через textContent.
-function renderEmoji(char, { animated = false } = {}) {
+function createEmojiImg(src) {
   const img = document.createElement('img');
   img.className = 'emoji-img';
   img.alt = '';
   img.setAttribute('aria-hidden', 'true');
   img.draggable = false;
   img.decoding = 'async';
-  const animatedUrl = animated ? animatedEmojiUrl(char) : null;
-  img.src = animatedUrl ?? staticEmojiUrl(char);
-  // Анимации нет (🏃 🧘 💊) — короткий «прыжок» статичной картинки.
-  if (animated && !animatedUrl) img.classList.add('is-bounce');
+  img.src = src;
+  return img;
+}
+
+// Эмодзи картинкой Noto: <img> скрыт от чтения с экрана, символ — в visually-hidden тексте,
+// поэтому textContent элемента остаётся прежним символом. Символ — только через textContent.
+// reuseImg — прежняя картинка карточки: при том же src она переносится, а не создаётся заново,
+// чтобы анимация не начиналась сначала на каждой перерисовке.
+function renderEmoji(char, { src = staticEmojiUrl(char), reuseImg = null } = {}) {
+  const img =
+    reuseImg !== null && reuseImg.getAttribute('src') === src ? reuseImg : createEmojiImg(src);
 
   const text = document.createElement('span');
   text.className = 'visually-hidden';
@@ -259,7 +276,7 @@ form.addEventListener('submit', (event) => {
 
 // --- Отрисовка списка из состояния ---
 
-function renderCard(habit, today, index) {
+function renderCard(habit, today, index, prevEmojiImgs = new Map()) {
   const li = document.createElement('li');
   li.className = 'habit-card';
   li.dataset.testid = 'habit-card';
@@ -278,9 +295,12 @@ function renderCard(habit, today, index) {
     const emoji = document.createElement('span');
     emoji.className = 'habit-emoji';
     emoji.dataset.testid = 'habit-emoji';
-    const animating = isEmojiAnimating(habit.id);
-    if (animating) emoji.dataset.animating = 'true';
-    emoji.append(renderEmoji(habit.emoji, { animated: animating }));
+    emoji.append(
+      renderEmoji(habit.emoji, { src: cardEmojiUrl(habit.emoji), reuseImg: prevEmojiImgs.get(habit.id) ?? null }),
+    );
+    const bouncing = bounceHabitId === habit.id;
+    if (bouncing) emoji.dataset.bounce = 'true';
+    emoji.querySelector('.emoji-img').classList.toggle('is-bounce', bouncing);
     const name = document.createElement('span');
     name.className = 'habit-name';
     name.dataset.testid = 'habit-name';
@@ -1077,7 +1097,15 @@ function render() {
   }
   hintEl.hidden = !(openReminderId !== null || state.habits.some((h) => h.reminder));
 
-  listEl.replaceChildren(...state.habits.map((habit, index) => renderCard(habit, today, index)));
+  // Картинки эмодзи прежних карточек — для переиспользования (анимация не перезапускается).
+  const prevEmojiImgs = new Map();
+  for (const card of listEl.querySelectorAll('.habit-card')) {
+    const img = card.querySelector('.habit-emoji .emoji-img');
+    if (img) prevEmojiImgs.set(card.dataset.habitId, img);
+  }
+  listEl.replaceChildren(
+    ...state.habits.map((habit, index) => renderCard(habit, today, index, prevEmojiImgs)),
+  );
   // Анимация проигрывается один раз — при следующей перерисовке её уже нет.
   popTarget = null;
   restoreFocus(savedFocus);

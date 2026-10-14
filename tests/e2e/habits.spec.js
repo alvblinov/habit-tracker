@@ -138,10 +138,11 @@ test.describe('добавление привычки (AC-1, AC-2)', () => {
     await expect(card.locator('b')).toHaveCount(0);
     await expect(card.locator('img[src="x"]')).toHaveCount(0);
     // Единственная картинка — эмодзи Noto (AC-37) в месте эмодзи; по умолчанию ⭐.
+    // На карточке — анимированный WebP (AC-38 в редакции 14.10.2026; reducedMotion по умолчанию no-preference).
     await expect(card.locator('img')).toHaveCount(1);
     const emojiImg = card.locator('[data-testid="habit-emoji"] img.emoji-img');
     await expect(emojiImg).toHaveCount(1);
-    await expect(emojiImg).toHaveAttribute('src', 'emoji/2b50.svg');
+    await expect(emojiImg).toHaveAttribute('src', 'emoji/2b50.webp');
   });
 });
 

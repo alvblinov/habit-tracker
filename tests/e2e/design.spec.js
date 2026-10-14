@@ -421,6 +421,9 @@ test.describe('где виден цвет привычки (AC-33)', () => {
       await expect(statsRow(page, 'a')).toBeVisible();
       await expect(statsRow(page, 'a')).toHaveAttribute('data-color', 'teal');
       await expect(statsRow(page, 'b')).toHaveAttribute('data-color', 'purple');
+      // Замер через expect.poll: устойчив к перерисовке строк между поиском элемента и evaluate.
+      await expect.poll(() => usedColors(statsRow(page, 'a'))).toContain(opaque(aButton));
+      await expect.poll(() => usedColors(statsRow(page, 'b'))).toContain(opaque(bButton));
       const rowA = await usedColors(statsRow(page, 'a'));
       const rowB = await usedColors(statsRow(page, 'b'));
       expect(rowA).toContain(opaque(aButton));
@@ -799,9 +802,46 @@ async function expectNotoImage(locator, char, { animated = false } = {}) {
 
 const habitEmoji = (page, id) => cardById(page, id).getByTestId('habit-emoji');
 
+/** Эмодзи с анимацией Noto (WebP); у 🏃 🧘 💊 анимации нет. */
+const ANIMATED = ALL_EMOJIS.filter((e) => !['🏃', '🧘', '💊'].includes(e));
+
 /**
- * Управляемые часы для эффекта на ~2 с: время ставится на паузу после загрузки,
- * таймеры срабатывают только по runFor.
+ * Пометка элемента картинки карточки JS-свойством (не атрибутом): при пересоздании <img>
+ * пометка теряется, при переносе прежнего элемента — сохраняется.
+ */
+const tagCardImg = (page, id, tag) =>
+  habitEmoji(page, id)
+    .locator('img.emoji-img')
+    .evaluate((img, t) => {
+      img.__testTag = t;
+    }, tag);
+const cardImgTag = (page, id) =>
+  habitEmoji(page, id)
+    .locator('img.emoji-img')
+    .evaluate((img) => img.__testTag ?? null);
+
+/** WebP анимированный: контейнер RIFF/WEBP, среди блоков есть ANIM и хотя бы два кадра ANMF. */
+const isAnimatedWebp = (page, src) =>
+  page.evaluate(async (url) => {
+    const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
+    const view = new DataView(bytes.buffer);
+    const ascii = (from) => String.fromCharCode(...bytes.slice(from, from + 4));
+    if (ascii(0) !== 'RIFF' || ascii(8) !== 'WEBP') return false;
+    let anim = false;
+    let frames = 0;
+    for (let i = 12; i + 8 <= bytes.length; ) {
+      const id = ascii(i);
+      const size = view.getUint32(i + 4, true);
+      if (id === 'ANIM') anim = true;
+      if (id === 'ANMF') frames += 1;
+      i += 8 + size + (size % 2);
+    }
+    return anim && frames >= 2;
+  }, src);
+
+/**
+ * Управляемые часы: время ставится на паузу после загрузки, таймеры (снятие эффекта ~600 мс,
+ * тик напоминаний) срабатывают только по runFor.
  */
 async function openWithClock(page) {
   await page.clock.install({ time: msk('12:00:00') });
@@ -906,19 +946,80 @@ test.describe('эмодзи Noto картинками (AC-37)', () => {
     await openFixed(page);
     await expect(cards(page)).toHaveCount(1);
     await expect(cardById(page, 'a').getByTestId('habit-name')).toHaveText('Чужой');
-    await expectNotoImage(habitEmoji(page, 'a'), '⭐');
+    // Тест идёт без reduced motion (no-preference): по AC-38 на карточке — анимированный WebP ⭐.
+    await expectNotoImage(habitEmoji(page, 'a'), '⭐', { animated: true });
     expect(errors).toEqual([]);
   });
 });
 
 // ---------------------------------------------------------------------------
 
-test.describe('«оживление» эмодзи при отметке (AC-38)', () => {
+// AC-38 в редакции 14.10.2026 (решение пользователя, вариант «двигаются всегда»): прежние ожидания
+// «WebP ~2 с только после отметки» и атрибут data-animating заменены — см. reports/005-design/04/tests.md.
+test.describe('эмодзи на карточках движутся всегда, «подпрыгивание» при отметке (AC-38)', () => {
   test.beforeEach(async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
   });
 
-  test('кнопка «Сегодня» для 📚: анимация WebP ~2 с, затем снова статичная картинка; WebP грузится только при отметке', async ({ page, baseURL }) => {
+  test('сразу после загрузки на карточках 9 эмодзи — анимированные WebP, 🏃 🧘 💊 — SVG; формы и статистика — SVG; без отметки эффекта нет', async ({ page, baseURL }) => {
+    const errors = collectErrors(page);
+    const requests = collectRequests(page, baseURL);
+    await seedStorage(
+      page,
+      seed(...ALL_EMOJIS.map((e, i) => habit(`h${i}`, `Привычка ${i + 1}`, e, i % 2 ? [TODAY] : [YESTERDAY]))),
+    );
+    await openWithClock(page);
+    await expect(cards(page)).toHaveCount(12);
+
+    // Карточки: без единой отметки — уже анимация (кроме трёх без анимации Noto), эффекта нет.
+    for (let i = 0; i < 12; i += 1) {
+      const char = ALL_EMOJIS[i];
+      const plate = habitEmoji(page, `h${i}`);
+      const info = await expectNotoImage(plate, char, { animated: ANIMATED.includes(char) });
+      await expect(plate).not.toHaveAttribute('data-bounce');
+      expect(info.bounce, `${char}: без отметки нет «подпрыгивания»`).toBe(false);
+    }
+    // Файлы WebP действительно анимированные (в RIFF есть блок ANIM), а не статичные кадры.
+    for (const char of ANIMATED) {
+      expect(await isAnimatedWebp(page, webpOf(char)), `${char}: WebP с анимацией`).toBe(true);
+    }
+
+    // Форма добавления — статичные SVG.
+    const addOptions = page.getByTestId('emoji-option');
+    await expect(addOptions).toHaveCount(12);
+    for (let i = 0; i < 12; i += 1) await expectNotoImage(addOptions.nth(i), ALL_EMOJIS[i]);
+
+    // Форма ✏️ — статичные SVG. Пока у h1 открыта форма, заголовка с эмодзи у h1 нет —
+    // другие карточки при этом остаются анимированными; h1 снова анимирована после «Отмена».
+    const card = cardById(page, 'h1');
+    await openEdit(card);
+    const editOptions = card.getByTestId('edit-emoji-option');
+    await expect(editOptions).toHaveCount(12);
+    for (let i = 0; i < 12; i += 1) await expectNotoImage(editOptions.nth(i), ALL_EMOJIS[i]);
+    await expectNotoImage(habitEmoji(page, 'h0'), '💧', { animated: true });
+    await card.getByTestId('edit-cancel').click();
+    await expect(card.getByTestId('edit-form')).toHaveCount(0);
+    await expectNotoImage(habitEmoji(page, 'h1'), '📚', { animated: true });
+
+    // Статистика — статичные SVG.
+    await page.getByTestId('stats-toggle').click();
+    await expect(page.getByTestId('stats-panel')).toBeVisible();
+    for (let i = 0; i < 12; i += 1) {
+      const row = statsRow(page, `h${i}`);
+      await expect(row).toBeVisible();
+      await expectNotoImage(row.locator('.stats-emoji'), ALL_EMOJIS[i]);
+    }
+
+    // WebP запрашивались только для 9 анимированных эмодзи.
+    const webpFiles = new Set(
+      webpRequests(requests).map((u) => u.replace(/^.*\/emoji\//, 'emoji/').replace(/\?.*$/, '')),
+    );
+    expect([...webpFiles].sort()).toEqual(ANIMATED.map(webpOf).sort());
+    expect(requests.external).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
+  test('кнопка «Сегодня» для 📚: data-bounce и is-bounce ~600 мс, затем снимаются; картинка — тот же WebP-элемент', async ({ page, baseURL }) => {
     const errors = collectErrors(page);
     const requests = collectRequests(page, baseURL);
     await seedStorage(page, seed(habit('a', 'Читать', '📚', [YESTERDAY]), habit('b', 'Вода', '💧', [])));
@@ -926,55 +1027,65 @@ test.describe('«оживление» эмодзи при отметке (AC-38)
     const a = habitEmoji(page, 'a');
     const b = habitEmoji(page, 'b');
 
-    // До отметки — статичные картинки, анимация не загружалась.
-    await expectNotoImage(a, '📚');
-    await expect(a).not.toHaveAttribute('data-animating');
-    expect(webpRequests(requests)).toEqual([]);
+    await expectNotoImage(a, '📚', { animated: true });
+    await expect(a).not.toHaveAttribute('data-bounce');
+    await tagCardImg(page, 'a', 'a-before');
 
     await cardById(page, 'a').getByTestId('toggle-today').click();
     await expect(cardById(page, 'a').getByTestId('toggle-today')).toHaveAttribute('aria-pressed', 'true');
-    await expect(a).toHaveAttribute('data-animating', 'true');
-    await expectNotoImage(a, '📚', { animated: true });
-    expect(webpRequests(requests).some((u) => u.endsWith(webpOf('📚')))).toBe(true);
-    // Другая привычка не «оживает».
-    await expect(b).not.toHaveAttribute('data-animating');
-    await expectNotoImage(b, '💧');
+    await expect(a).toHaveAttribute('data-bounce', 'true');
+    const during = await expectNotoImage(a, '📚', { animated: true });
+    expect(during.bounce, 'класс is-bounce на картинке').toBe(true);
+    // Эффект действительно виден: у картинки CSS-анимация.
+    expect(during.animationName, 'CSS-анимация «подпрыгивания»').not.toBe('none');
+    // Анимация WebP не начинается заново: картинка — тот же элемент.
+    expect(await cardImgTag(page, 'a')).toBe('a-before');
+    // Другая привычка не «подпрыгивает».
+    await expect(b).not.toHaveAttribute('data-bounce');
+    expect((await expectNotoImage(b, '💧', { animated: true })).bounce).toBe(false);
 
-    // Через 1 с эффект ещё идёт.
-    await page.clock.runFor(1000);
-    await expect(a).toHaveAttribute('data-animating', 'true');
-    expect((await emojiImage(a)).src).toBe(webpOf('📚'));
+    // Через 300 мс эффект ещё идёт.
+    await page.clock.runFor(300);
+    await expect(a).toHaveAttribute('data-bounce', 'true');
+    expect((await emojiImage(a)).bounce).toBe(true);
 
-    // После ~2 с (с запасом) — снова статичная картинка; отметка и данные на месте.
-    await page.clock.runFor(2000);
-    await expect(a).not.toHaveAttribute('data-animating');
-    await expectNotoImage(a, '📚');
+    // После ~600 мс (с запасом) эффект снят; картинка — тот же анимированный WebP.
+    await page.clock.runFor(400);
+    await expect(a).not.toHaveAttribute('data-bounce');
+    const after = await expectNotoImage(a, '📚', { animated: true });
+    expect(after.bounce).toBe(false);
+    expect(await cardImgTag(page, 'a')).toBe('a-before');
+
+    // Отметка и данные на месте.
     await expect(cardById(page, 'a').getByTestId('toggle-today')).toHaveAttribute('aria-pressed', 'true');
     await expect(cardById(page, 'a').getByTestId('habit-streak')).toHaveText('🔥 2 дня подряд');
     expect((await storedHabits(page))[0].done).toContain(TODAY);
-
     expect(requests.external).toEqual([]);
     expect(errors).toEqual([]);
   });
 
-  test('клик по сегодняшней клетке тоже запускает анимацию', async ({ page }) => {
+  test('клик по сегодняшней клетке тоже даёт «подпрыгивание», затем оно снимается', async ({ page }) => {
     const errors = collectErrors(page);
     await seedStorage(page, seed(habit('a', 'Огород', '🌱', [])));
     await openWithClock(page);
     const a = habitEmoji(page, 'a');
+    await tagCardImg(page, 'a', 'a-before');
 
     await cell(cardById(page, 'a'), TODAY).click();
     await expect(cell(cardById(page, 'a'), TODAY)).toHaveAttribute('aria-pressed', 'true');
-    await expect(a).toHaveAttribute('data-animating', 'true');
-    await expectNotoImage(a, '🌱', { animated: true });
+    await expect(a).toHaveAttribute('data-bounce', 'true');
+    const during = await expectNotoImage(a, '🌱', { animated: true });
+    expect(during.bounce).toBe(true);
+    expect(during.animationName).not.toBe('none');
 
-    await page.clock.runFor(3000);
-    await expect(a).not.toHaveAttribute('data-animating');
-    await expectNotoImage(a, '🌱');
+    await page.clock.runFor(700);
+    await expect(a).not.toHaveAttribute('data-bounce');
+    expect((await expectNotoImage(a, '🌱', { animated: true })).bounce).toBe(false);
+    expect(await cardImgTag(page, 'a')).toBe('a-before');
     expect(errors).toEqual([]);
   });
 
-  test('🏃, 🧘, 💊: без WebP, но с эффектом «подпрыгивания», затем эффект снимается', async ({ page, baseURL }) => {
+  test('🏃, 🧘, 💊: на карточке статичный SVG, при отметке — «подпрыгивание», затем оно снимается', async ({ page, baseURL }) => {
     const errors = collectErrors(page);
     const requests = collectRequests(page, baseURL);
     await seedStorage(page, seed(habit('r', 'Бег', '🏃', []), habit('y', 'Йога', '🧘', []), habit('p', 'Витамины', '💊', [])));
@@ -982,17 +1093,18 @@ test.describe('«оживление» эмодзи при отметке (AC-38)
 
     for (const [id, char] of [['r', '🏃'], ['y', '🧘'], ['p', '💊']]) {
       const plate = habitEmoji(page, id);
+      expect((await expectNotoImage(plate, char)).bounce).toBe(false);
+      await expect(plate).not.toHaveAttribute('data-bounce');
+
       await cardById(page, id).getByTestId('toggle-today').click();
-      await expect(plate).toHaveAttribute('data-animating', 'true');
+      await expect(plate).toHaveAttribute('data-bounce', 'true');
       const info = await expectNotoImage(plate, char);
       expect(info.bounce, `${char}: класс эффекта`).toBe(true);
-      // Эффект действительно виден: у картинки CSS-анимация.
       expect(info.animationName, `${char}: CSS-анимация`).not.toBe('none');
 
-      await page.clock.runFor(3000);
-      await expect(plate).not.toHaveAttribute('data-animating');
-      const after = await expectNotoImage(plate, char);
-      expect(after.bounce).toBe(false);
+      await page.clock.runFor(700);
+      await expect(plate).not.toHaveAttribute('data-bounce');
+      expect((await expectNotoImage(plate, char)).bounce).toBe(false);
     }
 
     expect(webpRequests(requests)).toEqual([]);
@@ -1000,9 +1112,8 @@ test.describe('«оживление» эмодзи при отметке (AC-38)
     expect(errors).toEqual([]);
   });
 
-  test('снятие отметки (кнопкой и клеткой) эффект не запускает; снятие во время эффекта его прекращает', async ({ page, baseURL }) => {
+  test('снятие отметки (кнопкой и клеткой) эффекта не даёт; снятие сразу после отметки эффект прекращает', async ({ page }) => {
     const errors = collectErrors(page);
-    const requests = collectRequests(page, baseURL);
     await seedStorage(page, seed(habit('a', 'Читать', '📚', [TODAY]), habit('b', 'Бег', '🏃', [TODAY])));
     await openWithClock(page);
     const a = habitEmoji(page, 'a');
@@ -1010,68 +1121,178 @@ test.describe('«оживление» эмодзи при отметке (AC-38)
 
     await cardById(page, 'a').getByTestId('toggle-today').click();
     await expect(cardById(page, 'a').getByTestId('toggle-today')).toHaveAttribute('aria-pressed', 'false');
-    await expect(a).not.toHaveAttribute('data-animating');
-    await expectNotoImage(a, '📚');
+    await expect(a).not.toHaveAttribute('data-bounce');
+    // Невыполненная привычка на карточке по-прежнему анимирована (движение не зависит от отметки).
+    expect((await expectNotoImage(a, '📚', { animated: true })).bounce).toBe(false);
 
     await cell(cardById(page, 'b'), TODAY).click();
     await expect(cell(cardById(page, 'b'), TODAY)).toHaveAttribute('aria-pressed', 'false');
-    await expect(b).not.toHaveAttribute('data-animating');
+    await expect(b).not.toHaveAttribute('data-bounce');
     expect((await expectNotoImage(b, '🏃')).bounce).toBe(false);
-    expect(webpRequests(requests)).toEqual([]);
 
-    // Отметить → эффект; сразу снять → эффекта нет (невыполненная привычка не «оживает»).
+    // Отметить → эффект; сразу снять → эффекта нет и он не возвращается.
     await cardById(page, 'a').getByTestId('toggle-today').click();
-    await expect(a).toHaveAttribute('data-animating', 'true');
+    await expect(a).toHaveAttribute('data-bounce', 'true');
     await cardById(page, 'a').getByTestId('toggle-today').click();
     await expect(cardById(page, 'a').getByTestId('toggle-today')).toHaveAttribute('aria-pressed', 'false');
-    await expect(a).not.toHaveAttribute('data-animating');
-    await expectNotoImage(a, '📚');
-    await page.clock.runFor(3000);
-    await expect(a).not.toHaveAttribute('data-animating');
+    await expect(a).not.toHaveAttribute('data-bounce');
+    expect((await expectNotoImage(a, '📚', { animated: true })).bounce).toBe(false);
+    await page.clock.runFor(1000);
+    await expect(a).not.toHaveAttribute('data-bounce');
+    expect((await emojiImage(a)).bounce).toBe(false);
     expect(errors).toEqual([]);
   });
 
-  test('отметка прошлого дня эффекта не даёт', async ({ page, baseURL }) => {
+  test('отметка прошлого дня эффекта не даёт', async ({ page }) => {
     const errors = collectErrors(page);
-    const requests = collectRequests(page, baseURL);
     await seedStorage(page, seed(habit('a', 'Читать', '📚', []), habit('b', 'Бег', '🏃', [])));
     await openWithClock(page);
 
     await cell(cardById(page, 'a'), YESTERDAY).click();
     await expect(cell(cardById(page, 'a'), YESTERDAY)).toHaveAttribute('aria-pressed', 'true');
-    await expect(habitEmoji(page, 'a')).not.toHaveAttribute('data-animating');
-    await expectNotoImage(habitEmoji(page, 'a'), '📚');
+    await expect(habitEmoji(page, 'a')).not.toHaveAttribute('data-bounce');
+    expect((await expectNotoImage(habitEmoji(page, 'a'), '📚', { animated: true })).bounce).toBe(false);
 
     await cell(cardById(page, 'b'), SUNDAY).click();
     await expect(cell(cardById(page, 'b'), SUNDAY)).toHaveAttribute('aria-pressed', 'true');
-    await expect(habitEmoji(page, 'b')).not.toHaveAttribute('data-animating');
+    await expect(habitEmoji(page, 'b')).not.toHaveAttribute('data-bounce');
     expect((await expectNotoImage(habitEmoji(page, 'b'), '🏃')).bounce).toBe(false);
-
-    expect(webpRequests(requests)).toEqual([]);
     expect(errors).toEqual([]);
   });
 
-  test('при prefers-reduced-motion: reduce — без анимации и без эффекта; отметка работает', async ({ page, baseURL }) => {
+  test('при prefers-reduced-motion: reduce — на карточках SVG, WebP не грузится, эффекта нет; отметка работает', async ({ page, baseURL }) => {
     const errors = collectErrors(page);
     const requests = collectRequests(page, baseURL);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await seedStorage(page, seed(habit('a', 'Читать', '📚', []), habit('b', 'Бег', '🏃', [])));
     await openWithClock(page);
 
+    await expectNotoImage(habitEmoji(page, 'a'), '📚');
+
     await cardById(page, 'a').getByTestId('toggle-today').click();
     await expect(cardById(page, 'a').getByTestId('toggle-today')).toHaveAttribute('aria-pressed', 'true');
-    await expect(habitEmoji(page, 'a')).not.toHaveAttribute('data-animating');
-    await expectNotoImage(habitEmoji(page, 'a'), '📚');
+    await expect(habitEmoji(page, 'a')).not.toHaveAttribute('data-bounce');
+    const a = await expectNotoImage(habitEmoji(page, 'a'), '📚');
+    expect(a.bounce).toBe(false);
+    expect(a.animationName).toBe('none');
 
     await cell(cardById(page, 'b'), TODAY).click();
     await expect(cell(cardById(page, 'b'), TODAY)).toHaveAttribute('aria-pressed', 'true');
-    await expect(habitEmoji(page, 'b')).not.toHaveAttribute('data-animating');
-    const info = await expectNotoImage(habitEmoji(page, 'b'), '🏃');
-    expect(info.bounce).toBe(false);
-    expect(info.animationName).toBe('none');
+    await expect(habitEmoji(page, 'b')).not.toHaveAttribute('data-bounce');
+    const b = await expectNotoImage(habitEmoji(page, 'b'), '🏃');
+    expect(b.bounce).toBe(false);
+    expect(b.animationName).toBe('none');
 
+    await page.clock.runFor(700);
+    await expectNotoImage(habitEmoji(page, 'a'), '📚');
     expect(webpRequests(requests)).toEqual([]);
     expect((await storedHabits(page)).every((h) => h.done.includes(TODAY))).toBe(true);
+    expect(errors).toEqual([]);
+  });
+
+  test('<img> карточки не пересоздаётся при перерисовках, если src не изменился; смена эмодзи в ✏️ даёт новую картинку', async ({ page, baseURL }) => {
+    const errors = collectErrors(page);
+    const requests = collectRequests(page, baseURL);
+    await seedStorage(
+      page,
+      seed(habit('a', 'Читать', '📚', []), habit('b', 'Вода', '💧', []), habit('c', 'Бег', '🏃', [])),
+    );
+    await openWithClock(page);
+    await tagCardImg(page, 'a', 'a-1');
+    await tagCardImg(page, 'c', 'c-1');
+    const expectKept = async (step) => {
+      expect(await cardImgTag(page, 'a'), `📚 после: ${step}`).toBe('a-1');
+      expect(await cardImgTag(page, 'c'), `🏃 после: ${step}`).toBe('c-1');
+      await expectNotoImage(habitEmoji(page, 'a'), '📚', { animated: true });
+      await expectNotoImage(habitEmoji(page, 'c'), '🏃');
+    };
+
+    // Отметка другой привычки (перерисовка списка) и окончание её эффекта (снятие по таймеру).
+    await cardById(page, 'b').getByTestId('toggle-today').click();
+    await expect(habitEmoji(page, 'b')).toHaveAttribute('data-bounce', 'true');
+    await expectKept('отметки другой привычки');
+    await page.clock.runFor(700);
+    await expect(habitEmoji(page, 'b')).not.toHaveAttribute('data-bounce');
+    await expectKept('окончания эффекта другой привычки');
+
+    // Отметка прошлого дня у самой привычки.
+    await cell(cardById(page, 'a'), YESTERDAY).click();
+    await expect(cell(cardById(page, 'a'), YESTERDAY)).toHaveAttribute('aria-pressed', 'true');
+    await expectKept('отметки прошлого дня');
+
+    // Тик напоминаний (раз в 15 с) и возврат во вкладку (focus → перечитать данные и перерисовать).
+    await page.clock.runFor(16000);
+    await expectKept('тика');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expectKept('возврата во вкладку');
+
+    // Смена темы и открытие статистики.
+    await page.getByTestId('theme-toggle').click();
+    await expectKept('смены темы');
+    await page.getByTestId('stats-toggle').click();
+    await expect(page.getByTestId('stats-panel')).toBeVisible();
+    await expectKept('открытия статистики');
+
+    // Смена эмодзи в ✏️ меняет src — картинка новая, с новым анимированным WebP.
+    const card = cardById(page, 'a');
+    await openEdit(card);
+    await card.locator('[data-testid="edit-emoji-option"][data-emoji="🎸"]').click();
+    await card.getByTestId('edit-save').click();
+    await expect(card.getByTestId('edit-form')).toHaveCount(0);
+    await expectNotoImage(habitEmoji(page, 'a'), '🎸', { animated: true });
+    expect(await cardImgTag(page, 'a')).toBeNull();
+    expect(await cardImgTag(page, 'c')).toBe('c-1');
+
+    expect(requests.external).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
+  // Регрессия (аудит 04, замечание 1): окончание «подпрыгивания» по таймеру не перерисовывает
+  // статистику и список — строки статистики и картинки карточек остаются теми же элементами.
+  test('отметка и сразу открытие статистики: по окончании эффекта строки статистики не пересоздаются', async ({ page }) => {
+    const errors = collectErrors(page);
+    await seedStorage(
+      page,
+      seed(habit('a', 'Читать', '📚', [YESTERDAY], { color: 'teal' }), habit('b', 'Вода', '💧', [], { color: 'purple' })),
+    );
+    await openWithClock(page);
+    await tagCardImg(page, 'b', 'b-1');
+
+    await cardById(page, 'a').getByTestId('toggle-today').click();
+    await expect(cardById(page, 'a').getByTestId('toggle-today')).toHaveAttribute('aria-pressed', 'true');
+    await page.getByTestId('stats-toggle').click();
+    await expect(page.getByTestId('stats-panel')).toBeVisible();
+    await expect(statsRow(page, 'a')).toBeVisible();
+    // Эффект ещё идёт — таймер его снятия впереди.
+    await expect(habitEmoji(page, 'a')).toHaveAttribute('data-bounce', 'true');
+
+    const tagRows = () =>
+      page.getByTestId('stats-row').evaluateAll((rows) => {
+        for (const row of rows) row.__testTag = `row-${row.dataset.habitId}`;
+        return rows.length;
+      });
+    const rowTags = () =>
+      page.getByTestId('stats-row').evaluateAll((rows) => rows.map((row) => `${row.dataset.habitId}:${row.__testTag ?? 'new'}`).sort());
+    expect(await tagRows()).toBe(2);
+    await tagCardImg(page, 'a', 'a-1');
+
+    // ~700 мс: таймер эффекта (~600 мс) сработал.
+    await page.clock.runFor(700);
+    await expect(habitEmoji(page, 'a')).not.toHaveAttribute('data-bounce');
+    expect((await emojiImage(habitEmoji(page, 'a'))).bounce).toBe(false);
+
+    // Строки статистики — те же элементы, в DOM, с прежним содержимым и цветом.
+    expect(await rowTags()).toEqual(['a:row-a', 'b:row-b']);
+    await expect(statsRow(page, 'a')).toBeVisible();
+    await expect(statsRow(page, 'a')).toHaveAttribute('data-color', 'teal');
+    await expect(statsRow(page, 'b')).toHaveAttribute('data-color', 'purple');
+    // Картинки карточек тоже не пересоздавались.
+    expect(await cardImgTag(page, 'a')).toBe('a-1');
+    expect(await cardImgTag(page, 'b')).toBe('b-1');
+    await expectNotoImage(habitEmoji(page, 'a'), '📚', { animated: true });
+
+    // Отметка сохранена.
+    expect((await storedHabits(page)).find((h) => h.id === 'a').done).toContain(TODAY);
     expect(errors).toEqual([]);
   });
 });
