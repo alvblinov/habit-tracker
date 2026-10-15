@@ -1,0 +1,44 @@
+2026-10-15T13:17:41+03:00
+command: npm run test:unit
+
+> habit-tracker@0.1.0 test:unit
+> vitest run
+
+
+ RUN  v5.0.4 C:/Users/1/Documents/habit-tracker
+
+ ❯ tests/unit/companion-tips.test.js (22 tests | 1 failed) 38ms
+   ❯ TIPS (1)
+     × не меньше 30 советов: непустые, разные, без «{…}» и упрёков 18ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/companion-tips.test.js > TIPS > не меньше 30 советов: непустые, разные, без «{…}» и упрёков
+AssertionError: Подумай, зачем тебе привычка. Ясная причина помогает в ленивые дни.: expected 'Подумай, зачем тебе привычка. Ясная п…' not to match /пропуст|лентя|ленив|стыдн|позор|пров…/i
+
+- Expected:
+/пропуст|лентя|ленив|стыдн|позор|провал/i
+
++ Received:
+"Подумай, зачем тебе привычка. Ясная причина помогает в ленивые дни."
+
+ ❯ tests/unit/companion-tips.test.js:19:28
+     17|       expect(tip.trim().length, tip).toBeGreaterThan(0);
+     18|       expect(tip, tip).not.toMatch(/[{}]/);
+     19|       expect(tip, tip).not.toMatch(REPROACH);
+       |                            ^
+     20|     }
+     21|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 12 passed (13)
+      Tests  1 failed | 660 passed (661)
+   Start at  13:17:43
+   Duration  1.08s (tests 36%, import 29%, transform 29%, worker 6%)
+
+    Isolate  13 workers spawned · ~317ms startup each (spawn + environment, per file)
+             at least ~271ms faster with isolate: false — reuses workers across files instead of one per file
+
+exit code: 1

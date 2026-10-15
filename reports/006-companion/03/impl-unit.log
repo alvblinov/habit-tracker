@@ -1,0 +1,177 @@
+
+> habit-tracker@0.1.0 test:unit
+> vitest run
+
+
+ RUN  v5.0.4 C:/Users/1/Documents/habit-tracker
+
+ ❯ tests/unit/companion.test.js (93 tests | 13 failed) 199ms
+   ❯ normalizeCompanionSettings (16)
+     × null (ключа нет) → по умолчанию: Мурзик, включён, знакомство не пройдено 21ms
+     × undefined → по умолчанию: Мурзик, включён, знакомство не пройдено 2ms
+     × битый JSON → по умолчанию: Мурзик, включён, знакомство не пройдено 4ms
+     × массив → по умолчанию: Мурзик, включён, знакомство не пройдено 2ms
+     × число → по умолчанию: Мурзик, включён, знакомство не пройдено 2ms
+     × строка-JSON с числом → по умолчанию: Мурзик, включён, знакомство не пройдено 2ms
+     × пустой объект → по умолчанию: Мурзик, включён, знакомство не пройдено 2ms
+     × корректные настройки сохраняются как есть (объект и JSON-строка) 2ms
+     × неизвестный персонаж → кот с именем Мурзик 2ms
+   ❯ companionEventForMark (16)
+     × markStreak: серия ≥ 2, но не рекорд (лучшая серия была длиннее), осталось 3+ 7ms
+     × серия, равная прежней лучшей, — не рекорд 2ms
+     × allDone: отмечена последняя привычка дня 2ms
+     × allDone: единственная привычка, первая отметка — не «рекорд» 2ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 13 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/companion.test.js > normalizeCompanionSettings > null (ключа нет) → по умолчанию: Мурзик, включён, знакомство не пройдено
+ FAIL  tests/unit/companion.test.js > normalizeCompanionSettings > undefined → по умолчанию: Мурзик, включён, знакомство не пройдено
+ FAIL  tests/unit/companion.test.js > normalizeCompanionSettings > битый JSON → по умолчанию: Мурзик, включён, знакомство не пройдено
+ FAIL  tests/unit/companion.test.js > normalizeCompanionSettings > массив → по умолчанию: Мурзик, включён, знакомство не пройдено
+ FAIL  tests/unit/companion.test.js > normalizeCompanionSettings > число → по умолчанию: Мурзик, включён, знакомство не пройдено
+ FAIL  tests/unit/companion.test.js > normalizeCompanionSettings > строка-JSON с числом → по умолчанию: Мурзик, включён, знакомство не пройдено
+ FAIL  tests/unit/companion.test.js > normalizeCompanionSettings > пустой объект → по умолчанию: Мурзик, включён, знакомство не пройдено
+AssertionError: expected { character: 'cat', …(5) } to deeply equal { character: 'cat', …(3) }
+
+- Expected
++ Received
+
+  {
+    "character": "cat",
+    "enabled": true,
+    "introduced": false,
++   "lastTipDate": null,
+    "name": "Мурзик",
++   "tourOffered": false,
+  }
+
+ ❯ tests/unit/companion.test.js:109:45
+    107|     ['пустой объект', {}],
+    108|   ])('%s → по умолчанию: Мурзик, включён, знакомство не пройдено', (_t…
+    109|     expect(normalizeCompanionSettings(raw)).toEqual(DEFAULTS);
+       |                                             ^
+    110|   });
+    111|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/13]⎯
+
+ FAIL  tests/unit/companion.test.js > normalizeCompanionSettings > корректные настройки сохраняются как есть (объект и JSON-строка)
+AssertionError: expected { character: 'owl', …(5) } to deeply equal { character: 'owl', …(3) }
+
+- Expected
++ Received
+
+  {
+    "character": "owl",
+    "enabled": false,
+    "introduced": true,
++   "lastTipDate": null,
+    "name": "Совушка",
++   "tourOffered": false,
+  }
+
+ ❯ tests/unit/companion.test.js:114:47
+    112|   it('корректные настройки сохраняются как есть (объект и JSON-строка)…
+    113|     const value = { character: 'owl', name: 'Совушка', enabled: false,…
+    114|     expect(normalizeCompanionSettings(value)).toEqual(value);
+       |                                               ^
+    115|     expect(normalizeCompanionSettings(JSON.stringify(value))).toEqual(…
+    116|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/13]⎯
+
+ FAIL  tests/unit/companion.test.js > normalizeCompanionSettings > неизвестный персонаж → кот с именем Мурзик
+AssertionError: expected { character: 'cat', …(5) } to deeply equal { character: 'cat', …(3) }
+
+- Expected
++ Received
+
+  {
+    "character": "cat",
+    "enabled": true,
+    "introduced": true,
++   "lastTipDate": null,
+    "name": "Мурзик",
++   "tourOffered": false,
+  }
+
+ ❯ tests/unit/companion.test.js:119:83
+    117|
+    118|   it('неизвестный персонаж → кот с именем Мурзик', () => {
+    119|     expect(normalizeCompanionSettings({ character: 'beaver', introduce…
+       |                                                                                   ^
+    120|       character: 'cat',
+    121|       name: 'Мурзик',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/13]⎯
+
+ FAIL  tests/unit/companion.test.js > companionEventForMark > markStreak: серия ≥ 2, но не рекорд (лучшая серия была длиннее), осталось 3+
+AssertionError: expected 'milestone' to be 'markStreak' // Object.is equality
+
+Expected: "markStreak"
+Received: "milestone"
+
+ ❯ tests/unit/companion.test.js:404:26
+    402|     const s = st(a, fresh('b'), fresh('c'), fresh('d'));
+    403|     const result = companionEventForMark({ before: s, after: toggled(s…
+    404|     expect(result.event).toBe('markStreak');
+       |                          ^
+    405|     expect(result.ctx).toMatchObject({ habit: 'Читать', streak: 3, lef…
+    406|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/13]⎯
+
+ FAIL  tests/unit/companion.test.js > companionEventForMark > серия, равная прежней лучшей, — не рекорд
+AssertionError: expected 'milestone' to be 'markStreak' // Object.is equality
+
+Expected: "markStreak"
+Received: "milestone"
+
+ ❯ tests/unit/companion.test.js:412:26
+    410|     const s = st(a, fresh('b'), fresh('c'), fresh('d'));
+    411|     const result = companionEventForMark({ before: s, after: toggled(s…
+    412|     expect(result.event).toBe('markStreak');
+       |                          ^
+    413|     expect(result.ctx.streak).toBe(3);
+    414|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/13]⎯
+
+ FAIL  tests/unit/companion.test.js > companionEventForMark > allDone: отмечена последняя привычка дня
+AssertionError: expected 'firstDayClosed' to be 'allDone' // Object.is equality
+
+Expected: "allDone"
+Received: "firstDayClosed"
+
+ ❯ tests/unit/companion.test.js:430:26
+    428|     const s = st({ ...fresh('a'), done: [TODAY] }, fresh('b'));
+    429|     const result = companionEventForMark({ before: s, after: toggled(s…
+    430|     expect(result.event).toBe('allDone');
+       |                          ^
+    431|     expect(result.ctx).toMatchObject({ done: 2, total: 2, left: 0 });
+    432|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/13]⎯
+
+ FAIL  tests/unit/companion.test.js > companionEventForMark > allDone: единственная привычка, первая отметка — не «рекорд»
+AssertionError: expected 'firstDayClosed' to be 'allDone' // Object.is equality
+
+Expected: "allDone"
+Received: "firstDayClosed"
+
+ ❯ tests/unit/companion.test.js:437:26
+    435|     const s = st(fresh('a'));
+    436|     const result = companionEventForMark({ before: s, after: toggled(s…
+    437|     expect(result.event).toBe('allDone');
+       |                          ^
+    438|     expect(result.ctx.streak).toBe(1);
+    439|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/13]⎯
+
+
+ Test Files  1 failed | 9 passed (10)
+      Tests  13 failed | 515 passed (528)
+   Start at  12:55:27
+   Duration  888ms (tests 46%, import 32%, transform 15%, worker 6%)
+

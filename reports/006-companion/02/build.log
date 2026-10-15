@@ -1,0 +1,17 @@
+2026-10-15T09:41:44+03:00
+command: npm run build
+
+> habit-tracker@0.1.0 build
+> vite build
+
+[36mvite v8.3.4 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 16 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                  9.52 kB │ gzip:  2.65 kB
+dist/assets/index-Cu7pQs1v.css  21.29 kB │ gzip:  4.90 kB
+dist/assets/index-D_5aPGFF.js   60.14 kB │ gzip: 18.46 kB
+
+[32m✓ built in 205ms[39m
+exit code: 0

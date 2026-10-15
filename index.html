@@ -48,6 +48,9 @@
           <h1>Трекер привычек</h1>
           <p id="today-summary" class="summary" data-testid="today-summary" aria-live="polite"></p>
         </div>
+        <div class="companion-slot">
+          <button id="companion-on" type="button" class="companion-on" data-testid="companion-on" hidden>Включить помощника</button>
+        </div>
         <button
           id="theme-toggle"
           type="button"
@@ -95,6 +98,19 @@
 
       <div id="reminder-banners" class="reminder-banners" aria-live="polite"></div>
 
+      <!-- Знакомство с помощником: встроенная карточка, не модальное окно. -->
+      <section
+        id="companion-intro"
+        class="companion-intro"
+        data-testid="companion-intro"
+        aria-labelledby="companion-intro-title"
+        hidden
+      >
+        <h2 id="companion-intro-title" class="companion-intro-title" data-testid="companion-intro-title"></h2>
+        <div id="companion-options" class="companion-options" role="group" aria-label="Помощники"></div>
+        <button type="button" id="companion-intro-skip" class="companion-intro-skip" data-testid="companion-intro-skip">Позже</button>
+      </section>
+
       <form id="add-form" class="add-form" autocomplete="off">
         <label class="field-label" for="habit-name">Новая привычка</label>
         <input
@@ -118,10 +134,139 @@
       <ul id="habit-list" class="habit-list"></ul>
     </main>
     <footer class="app-footer" data-testid="emoji-credit">
-      Эмодзи:
+      Эмодзи и персонажи:
       <a href="https://googlefonts.github.io/noto-emoji-animation/" target="_blank" rel="noopener">Google Noto</a>
       (CC BY 4.0, Apache 2.0)
     </footer>
+
+    <!-- Помощник: плавающий виджет в правом нижнем углу; облачко и меню — над ним. -->
+    <div id="companion-wrap" class="companion companion-dock" data-testid="companion-dock" hidden>
+      <div class="companion-pop">
+        <div id="companion-menu" class="companion-menu" data-testid="companion-menu" hidden>
+          <form id="companion-ask-form" class="companion-ask" data-testid="companion-ask-form" autocomplete="off">
+            <label class="companion-ask-label" for="companion-ask-input">Спроси меня</label>
+            <div class="companion-ask-row">
+              <input
+                id="companion-ask-input"
+                class="name-input companion-ask-input"
+                type="text"
+                maxlength="200"
+                placeholder="Что такое серия?"
+                data-testid="companion-ask-input"
+              />
+              <button type="submit" class="companion-ask-submit" data-testid="companion-ask-submit">Спросить</button>
+            </div>
+            <div id="companion-quick" class="companion-quick" role="group" aria-label="Частые вопросы"></div>
+          </form>
+          <button
+            id="companion-tour-start"
+            type="button"
+            class="companion-menu-item"
+            data-testid="companion-tour-start"
+          >Экскурсия по трекеру</button>
+          <button
+            id="companion-change"
+            type="button"
+            class="companion-menu-item"
+            data-testid="companion-change"
+            aria-expanded="false"
+            aria-controls="companion-picker"
+          >Сменить помощника</button>
+          <div
+            id="companion-picker"
+            class="companion-picker"
+            data-testid="companion-picker"
+            role="group"
+            aria-label="Выбор помощника"
+            hidden
+          ></div>
+          <button
+            id="companion-rename"
+            type="button"
+            class="companion-menu-item"
+            data-testid="companion-rename"
+            aria-expanded="false"
+            aria-controls="companion-rename-form"
+          >Переименовать</button>
+          <form id="companion-rename-form" class="companion-rename-form" data-testid="companion-rename-form" autocomplete="off" hidden>
+            <input
+              id="companion-name-input"
+              class="name-input companion-name-input"
+              type="text"
+              maxlength="20"
+              aria-label="Имя помощника"
+              data-testid="companion-name-input"
+            />
+            <button type="submit" class="companion-rename-save" data-testid="companion-rename-save">Сохранить</button>
+            <p id="companion-rename-error" class="companion-rename-error" data-testid="companion-rename-error" role="alert" hidden>Имя — от 1 до 20 символов</p>
+          </form>
+          <button
+            id="companion-off"
+            type="button"
+            class="companion-menu-item"
+            data-testid="companion-off"
+          >Выключить помощника</button>
+        </div>
+        <div
+          id="companion-bubble"
+          class="companion-bubble"
+          data-testid="companion-bubble"
+          role="status"
+          aria-live="polite"
+          aria-busy="false"
+          hidden
+        >
+          <div class="companion-bubble-head">
+            <p id="companion-bubble-name" class="companion-bubble-name" data-testid="companion-bubble-name"></p>
+            <button
+              id="companion-bubble-close"
+              type="button"
+              class="companion-bubble-close"
+              data-testid="companion-bubble-close"
+              aria-label="Закрыть"
+              title="Закрыть"
+            >×</button>
+          </div>
+          <p id="companion-bubble-text" class="companion-bubble-text" data-testid="companion-bubble-text"></p>
+          <div id="companion-bubble-actions" class="companion-bubble-actions" hidden></div>
+        </div>
+      </div>
+      <button
+        id="companion"
+        type="button"
+        class="companion-button"
+        data-testid="companion"
+        aria-haspopup="true"
+        aria-expanded="false"
+        aria-controls="companion-menu"
+        aria-label="Помощник"
+      >
+        <img id="companion-img" class="companion-img" alt="" aria-hidden="true" draggable="false" />
+      </button>
+      <div id="companion-confetti" class="companion-confetti" data-testid="companion-confetti" aria-hidden="true"></div>
+    </div>
+
+    <!-- Экскурсия: затемнение с «окном» вокруг цели и карточка шага. -->
+    <div id="companion-tour" class="companion-tour" data-testid="companion-tour" hidden>
+      <div id="companion-tour-spot" class="companion-tour-spot" data-testid="companion-tour-spot" aria-hidden="true"></div>
+      <section
+        id="companion-tour-step"
+        class="companion-tour-step"
+        data-testid="companion-tour-step"
+        role="dialog"
+        aria-labelledby="companion-tour-title"
+        aria-describedby="companion-tour-text"
+      >
+        <p id="companion-tour-count" class="companion-tour-count" data-testid="companion-tour-count"></p>
+        <h2 id="companion-tour-title" class="companion-tour-title" data-testid="companion-tour-title"></h2>
+        <p id="companion-tour-text" class="companion-tour-text" data-testid="companion-tour-text"></p>
+        <div class="companion-tour-buttons">
+          <button type="button" id="companion-tour-prev" class="companion-tour-prev" data-testid="companion-tour-prev">Назад</button>
+          <button type="button" id="companion-tour-next" class="companion-tour-next" data-testid="companion-tour-next">Далее</button>
+          <button type="button" id="companion-tour-close" class="companion-tour-close" data-testid="companion-tour-close">Закрыть</button>
+        </div>
+      </section>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
