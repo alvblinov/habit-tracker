@@ -1,0 +1,14 @@
+
+> habit-tracker@0.1.0 build
+> vite build
+
+[36mvite v8.3.4 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 15 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                  5.59 kB │ gzip:  1.96 kB
+dist/assets/index-DZyrKl7e.css  17.59 kB │ gzip:  4.32 kB
+dist/assets/index-DyR3P1Hc.js   30.28 kB │ gzip: 10.02 kB
+
+[32m✓ built in 218ms[39m

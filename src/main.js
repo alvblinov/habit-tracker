@@ -29,6 +29,9 @@ import {
 import { ensurePermission, showNotification } from './notify.js';
 import { WEEKDAY_SHORT, WEEKDAY_FULL, normalizeDays, isScheduled, describeDays } from './schedule.js';
 import { computeStats, DEFAULT_PERIOD } from './stats.js';
+import { PALETTE, COLOR_LABELS, normalizeColor } from './colors.js';
+import { THEME_KEY, normalizeTheme, resolveTheme, toggleTheme } from './theme.js';
+import { staticEmojiUrl, animatedEmojiUrl } from './emoji-assets.js';
 
 const GRID_DAYS = 30;
 
@@ -63,6 +66,10 @@ const statsBestWeekdayEl = document.querySelector('#stats-best-weekday');
 const statsTable = document.querySelector('#stats-table');
 const statsBody = document.querySelector('#stats-body');
 const statsEmptyEl = document.querySelector('#stats-empty');
+const ringEl = document.querySelector('[data-testid="progress-ring"]');
+const ringValueEl = document.querySelector('#progress-ring-value');
+const ringLabelEl = document.querySelector('#progress-ring-label');
+const themeToggle = document.querySelector('#theme-toggle');
 
 const CHECK_EVERY_MS = 15000;
 
@@ -78,6 +85,90 @@ let editDraft = null;
 // Блок статистики: открыт/закрыт и выбранный период — в памяти модуля.
 let statsOpen = false;
 let statsPeriod = DEFAULT_PERIOD;
+
+// Только что переключённая отметка (кнопка «Сегодня» или клетка) — для короткой анимации.
+let popTarget = null;
+
+// Эмодзи на карточках анимированы всегда (Noto *.webp, у 🏃 🧘 💊 — статичный *.svg).
+// После отметки сегодняшнего дня — короткое «подпрыгивание»: id привычки в памяти модуля.
+const EMOJI_BOUNCE_MS = 600;
+let bounceHabitId = null;
+let bounceTimer = null;
+
+function prefersReducedMotion() {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+// Запускается только при переходе сегодняшнего дня в «выполнено».
+function startEmojiBounce(habitId) {
+  if (prefersReducedMotion()) return;
+  bounceHabitId = habitId;
+  if (bounceTimer !== null) clearTimeout(bounceTimer);
+  bounceTimer = setTimeout(() => {
+    bounceTimer = null;
+    bounceHabitId = null;
+    clearEmojiBounce(habitId);
+  }, EMOJI_BOUNCE_MS);
+}
+
+// Точечно снимает эффект с карточки без полной перерисовки (статистика и карточки не пересоздаются).
+// bounceHabitId уже сброшен, поэтому следующий render() эффект не вернёт.
+function clearEmojiBounce(habitId) {
+  const plate = findCard(habitId)?.querySelector('.habit-emoji');
+  if (!plate) return;
+  delete plate.dataset.bounce;
+  plate.querySelector('.emoji-img')?.classList.remove('is-bounce');
+}
+
+// Снятие сегодняшней отметки прекращает эффект этой привычки.
+function stopEmojiBounce(habitId) {
+  if (bounceHabitId !== habitId) return;
+  bounceHabitId = null;
+  if (bounceTimer !== null) clearTimeout(bounceTimer);
+  bounceTimer = null;
+}
+
+// Сегодняшний день переключён: отметка — эффект, снятие — без эффекта.
+function onTodayToggled(habitId, todayKey, next) {
+  if (next === state) return;
+  const updated = next.habits.find((h) => h.id === habitId);
+  if (updated && isDone(updated, todayKey)) startEmojiBounce(habitId);
+  else stopEmojiBounce(habitId);
+}
+
+// Картинка эмодзи на карточке: анимация Noto, если она есть и движение не уменьшено.
+function cardEmojiUrl(char) {
+  if (prefersReducedMotion()) return staticEmojiUrl(char);
+  return animatedEmojiUrl(char) ?? staticEmojiUrl(char);
+}
+
+function createEmojiImg(src) {
+  const img = document.createElement('img');
+  img.className = 'emoji-img';
+  img.alt = '';
+  img.setAttribute('aria-hidden', 'true');
+  img.draggable = false;
+  img.decoding = 'async';
+  img.src = src;
+  return img;
+}
+
+// Эмодзи картинкой Noto: <img> скрыт от чтения с экрана, символ — в visually-hidden тексте,
+// поэтому textContent элемента остаётся прежним символом. Символ — только через textContent.
+// reuseImg — прежняя картинка карточки: при том же src она переносится, а не создаётся заново,
+// чтобы анимация не начиналась сначала на каждой перерисовке.
+function renderEmoji(char, { src = staticEmojiUrl(char), reuseImg = null } = {}) {
+  const img =
+    reuseImg !== null && reuseImg.getAttribute('src') === src ? reuseImg : createEmojiImg(src);
+
+  const text = document.createElement('span');
+  text.className = 'visually-hidden';
+  text.textContent = char;
+
+  const fragment = document.createDocumentFragment();
+  fragment.append(img, text);
+  return fragment;
+}
 
 // «Сегодня» — локальная дата, вычисляется заново на каждом рендере и действии.
 function getToday() {
@@ -105,6 +196,11 @@ function formatDate(key) {
     month: 'long',
     year: 'numeric',
   });
+}
+
+// Ключ палитры для отрисовки: только значение из PALETTE, никогда не пользовательский ввод.
+function colorOf(habit, index) {
+  return normalizeColor(habit.color) ?? PALETTE[index % PALETTE.length];
 }
 
 function commit(nextState) {
@@ -141,7 +237,7 @@ function buildEmojiOptions() {
     const face = document.createElement('span');
     face.className = 'emoji-option-face';
     face.setAttribute('aria-hidden', 'true');
-    face.textContent = emoji;
+    face.append(renderEmoji(emoji));
 
     label.append(input, face);
     emojiOptions.append(label);
@@ -180,11 +276,12 @@ form.addEventListener('submit', (event) => {
 
 // --- Отрисовка списка из состояния ---
 
-function renderCard(habit, today) {
+function renderCard(habit, today, index, prevEmojiImgs = new Map()) {
   const li = document.createElement('li');
   li.className = 'habit-card';
   li.dataset.testid = 'habit-card';
   li.dataset.habitId = habit.id;
+  li.dataset.color = colorOf(habit, index);
 
   const header = document.createElement('div');
   header.className = 'habit-header';
@@ -198,7 +295,12 @@ function renderCard(habit, today) {
     const emoji = document.createElement('span');
     emoji.className = 'habit-emoji';
     emoji.dataset.testid = 'habit-emoji';
-    emoji.textContent = habit.emoji;
+    emoji.append(
+      renderEmoji(habit.emoji, { src: cardEmojiUrl(habit.emoji), reuseImg: prevEmojiImgs.get(habit.id) ?? null }),
+    );
+    const bouncing = bounceHabitId === habit.id;
+    if (bouncing) emoji.dataset.bounce = 'true';
+    emoji.querySelector('.emoji-img').classList.toggle('is-bounce', bouncing);
     const name = document.createElement('span');
     name.className = 'habit-name';
     name.dataset.testid = 'habit-name';
@@ -246,9 +348,13 @@ function renderCard(habit, today) {
   todayBtn.dataset.testid = 'toggle-today';
   todayBtn.setAttribute('aria-pressed', String(doneToday));
   todayBtn.textContent = doneToday ? 'Сегодня ✓' : 'Сегодня';
+  if (isPopTarget(habit.id, 'toggle-today')) todayBtn.classList.add('is-pop');
   todayBtn.addEventListener('click', () => {
     const now = getToday();
-    commit(toggleDay(state, habit.id, now, now));
+    popTarget = { habitId: habit.id, testid: 'toggle-today' };
+    const next = toggleDay(state, habit.id, now, now);
+    onTodayToggled(habit.id, now, next);
+    commit(next);
   });
 
   const deleteBtn = document.createElement('button');
@@ -312,8 +418,14 @@ function renderCard(habit, today) {
     const label = `${formatDate(key)}${key === today ? ' (сегодня)' : ''}${scheduled ? '' : ' — выходной'}${done ? ' — выполнено' : ''}`;
     cell.title = label;
     cell.setAttribute('aria-label', label);
+    if (isPopTarget(habit.id, 'day-cell', key)) cell.classList.add('is-pop');
     cell.addEventListener('click', () => {
-      commit(toggleDay(state, habit.id, key, getToday()));
+      popTarget = { habitId: habit.id, testid: 'day-cell', date: key };
+      const now = getToday();
+      const next = toggleDay(state, habit.id, key, now);
+      // Эффект — только при отметке сегодняшнего дня, не прошлых дней и не при снятии.
+      if (key === now) onTodayToggled(habit.id, now, next);
+      commit(next);
     });
     grid.append(cell);
   }
@@ -332,6 +444,10 @@ function renderCard(habit, today) {
   return li;
 }
 
+function isPopTarget(habitId, testid, date) {
+  return popTarget !== null && popTarget.habitId === habitId && popTarget.testid === testid && popTarget.date === date;
+}
+
 // --- Редактирование названия и эмодзи ---
 
 function findCard(habitId) {
@@ -347,7 +463,13 @@ function focusInCard(habitId, testid) {
 
 function openEditForm(habit) {
   editingId = habit.id;
-  editDraft = { name: habit.name, emoji: habit.emoji, days: normalizeDays(habit.days) };
+  const index = state.habits.findIndex((h) => h.id === habit.id);
+  editDraft = {
+    name: habit.name,
+    emoji: habit.emoji,
+    days: normalizeDays(habit.days),
+    color: colorOf(habit, Math.max(index, 0)),
+  };
   render();
   focusInCard(habit.id, 'edit-name-input');
 }
@@ -428,10 +550,41 @@ function renderEditForm(habit) {
     const face = document.createElement('span');
     face.className = 'emoji-option-face';
     face.setAttribute('aria-hidden', 'true');
-    face.textContent = emoji;
+    face.append(renderEmoji(emoji));
 
     label.append(radio, face);
     options.append(label);
+  }
+
+  // Цвет привычки: 8 кружков палитры, отмечен текущий.
+  const colors = document.createElement('div');
+  colors.className = 'color-options';
+  colors.setAttribute('role', 'radiogroup');
+  colors.setAttribute('aria-label', 'Цвет');
+  for (const key of PALETTE) {
+    const label = document.createElement('label');
+    label.className = 'color-option';
+    label.dataset.testid = 'edit-color-option';
+    label.dataset.color = key;
+    label.title = COLOR_LABELS[key];
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = `edit-color-${habit.id}`;
+    radio.value = key;
+    radio.className = 'visually-hidden';
+    radio.checked = key === editDraft.color;
+    radio.setAttribute('aria-label', COLOR_LABELS[key]);
+    radio.addEventListener('change', () => {
+      if (radio.checked) editDraft.color = key;
+    });
+
+    const swatch = document.createElement('span');
+    swatch.className = 'color-option-swatch';
+    swatch.setAttribute('aria-hidden', 'true');
+
+    label.append(radio, swatch);
+    colors.append(label);
   }
 
   // Расписание: 7 переключателей Пн…Вс; последний отмеченный день снять нельзя.
@@ -493,7 +646,7 @@ function renderEditForm(habit) {
   cancel.addEventListener('click', closeEditForm);
 
   buttons.append(save, cancel);
-  editForm.append(input, options, daysGroup, buttons);
+  editForm.append(input, options, colors, daysGroup, buttons);
   return editForm;
 }
 
@@ -782,17 +935,18 @@ function parsePeriod(value) {
   return value === 'all' ? 'all' : Number(value);
 }
 
-function renderStatsRow(row) {
+function renderStatsRow(row, color) {
   const tr = document.createElement('tr');
   tr.className = 'stats-row';
   tr.dataset.testid = 'stats-row';
   tr.dataset.habitId = row.habitId;
+  tr.dataset.color = color;
 
   const habitCell = document.createElement('td');
   habitCell.className = 'stats-habit';
   const emoji = document.createElement('span');
   emoji.className = 'stats-emoji';
-  emoji.textContent = row.emoji;
+  emoji.append(renderEmoji(row.emoji));
   const name = document.createElement('span');
   name.className = 'stats-name';
   name.textContent = row.name;
@@ -845,7 +999,10 @@ function renderStats(today) {
   const hasHabits = state.habits.length > 0;
   statsEmptyEl.hidden = hasHabits;
   statsTable.hidden = !hasHabits;
-  statsBody.replaceChildren(...stats.rows.map(renderStatsRow));
+  const colorById = new Map(state.habits.map((habit, index) => [habit.id, colorOf(habit, index)]));
+  statsBody.replaceChildren(
+    ...stats.rows.map((row) => renderStatsRow(row, colorById.get(row.habitId) ?? PALETTE[0])),
+  );
 }
 
 statsToggle.addEventListener('click', () => {
@@ -860,12 +1017,71 @@ for (const button of statsPeriodButtons) {
   });
 }
 
+// --- Кольцо прогресса дня ---
+
+function renderRing(done, total) {
+  const percent = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  ringEl.dataset.done = String(done);
+  ringEl.dataset.total = String(total);
+  ringEl.dataset.complete = String(total > 0 && done === total);
+  ringValueEl.setAttribute('stroke-dasharray', `${percent} 100`);
+  ringLabelEl.textContent = `${done}/${total}`;
+}
+
+// --- Тема оформления ---
+
+const systemDark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+function readSavedTheme() {
+  try {
+    return normalizeTheme(window.localStorage.getItem(THEME_KEY));
+  } catch {
+    return null;
+  }
+}
+
+function currentTheme() {
+  // Атрибут ставит inline-скрипт в <head> или кнопка; без него — системная тема.
+  const attr = normalizeTheme(document.documentElement.getAttribute('data-theme'));
+  return resolveTheme(attr, Boolean(systemDark && systemDark.matches));
+}
+
+function renderThemeToggle() {
+  const dark = currentTheme() === 'dark';
+  const label = dark ? 'Включить светлую тему' : 'Включить тёмную тему';
+  themeToggle.textContent = dark ? '☀️' : '🌙';
+  themeToggle.setAttribute('aria-label', label);
+  themeToggle.title = label;
+  themeToggle.setAttribute('aria-pressed', String(dark));
+}
+
+themeToggle.addEventListener('click', () => {
+  const next = toggleTheme(currentTheme());
+  document.documentElement.setAttribute('data-theme', next);
+  try {
+    // Только свой ключ темы; данные привычек не трогаем.
+    window.localStorage.setItem(THEME_KEY, next);
+  } catch {
+    // Не сохранилось — тема действует до перезагрузки.
+  }
+  renderThemeToggle();
+});
+
+if (systemDark) {
+  const onSystemChange = () => {
+    if (readSavedTheme() === null) renderThemeToggle();
+  };
+  if (typeof systemDark.addEventListener === 'function') systemDark.addEventListener('change', onSystemChange);
+  else if (typeof systemDark.addListener === 'function') systemDark.addListener(onSystemChange);
+}
+
 function render() {
   const today = getToday();
   const savedFocus = captureFocus();
 
   const { done, total } = getTodaySummary(state, today);
   summaryEl.textContent = `Сегодня выполнено ${done} из ${total}`;
+  renderRing(done, total);
 
   emptyEl.hidden = state.habits.length > 0;
 
@@ -881,12 +1097,23 @@ function render() {
   }
   hintEl.hidden = !(openReminderId !== null || state.habits.some((h) => h.reminder));
 
-  listEl.replaceChildren(...state.habits.map((habit) => renderCard(habit, today)));
+  // Картинки эмодзи прежних карточек — для переиспользования (анимация не перезапускается).
+  const prevEmojiImgs = new Map();
+  for (const card of listEl.querySelectorAll('.habit-card')) {
+    const img = card.querySelector('.habit-emoji .emoji-img');
+    if (img) prevEmojiImgs.set(card.dataset.habitId, img);
+  }
+  listEl.replaceChildren(
+    ...state.habits.map((habit, index) => renderCard(habit, today, index, prevEmojiImgs)),
+  );
+  // Анимация проигрывается один раз — при следующей перерисовке её уже нет.
+  popTarget = null;
   restoreFocus(savedFocus);
   renderStats(today);
 }
 
 buildEmojiOptions();
+renderThemeToggle();
 render();
 
 // Другая вкладка изменила данные — перечитать их, чтобы не затереть устаревшей копией.

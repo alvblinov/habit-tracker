@@ -235,3 +235,95 @@ describe('расписание в хранилище (AC-23)', () => {
     expect(raw.habits[0].days).toEqual([1, 3, 5]);
   });
 });
+
+// --- Итерация 005: цвет привычки в хранилище (AC-32, AC-35) ---
+
+describe('цвет привычки в хранилище (AC-32)', () => {
+  const legacy = (id, over = {}) => ({
+    id,
+    name: `Привычка ${id}`,
+    emoji: '📚',
+    createdAt: '2026-09-01',
+    done: ['2026-10-12', TODAY],
+    reminder: null,
+    ...over,
+  });
+  const store = (habits) => createStorage({ [STORAGE_KEY]: JSON.stringify({ version: 1, habits }) });
+
+  it('старые данные без цвета → цвета палитры по порядку в списке, отметки целы', () => {
+    const state = loadState(store([legacy('a'), legacy('b'), legacy('c')]));
+    expect(state.habits.map((h) => h.color)).toEqual(['teal', 'purple', 'coral']);
+    expect(state.habits[0].done).toEqual(['2026-10-12', TODAY]);
+  });
+
+  it('больше 8 старых привычек без цвета → по кругу', () => {
+    const habits = Array.from({ length: 10 }, (_, i) => legacy(`h${i}`));
+    const state = loadState(store(habits));
+    expect(state.habits.map((h) => h.color)).toEqual([
+      'teal', 'purple', 'coral', 'pink', 'blue', 'green', 'amber', 'gray', 'teal', 'purple',
+    ]);
+  });
+
+  it('сохранённый цвет палитры не заменяется', () => {
+    const state = loadState(store([legacy('a', { color: 'amber' }), legacy('b', { color: 'gray' })]));
+    expect(state.habits.map((h) => h.color)).toEqual(['amber', 'gray']);
+  });
+
+  it.each([
+    ['неизвестный ключ', 'neon'],
+    ['HEX', '#123456'],
+    ['число', 7],
+    ['null', null],
+    ['объект', { key: 'teal' }],
+    ['попытка CSS-инъекции', 'teal"] body { display:none }'],
+  ])('битый цвет (%s) → цвет по позиции, привычка цела', (_title, color) => {
+    const state = loadState(store([legacy('a', { color: 'blue' }), legacy('b', { color })]));
+    expect(state.habits.map((h) => h.id)).toEqual(['a', 'b']);
+    expect(state.habits[1].color).toBe('purple');
+    expect(state.habits[1].done).toEqual(['2026-10-12', TODAY]);
+  });
+
+  it('смешанные данные: без цвета, с цветом, битый', () => {
+    const state = loadState(
+      store([legacy('a'), legacy('b', { color: 'amber' }), legacy('c', { color: 'neon' })]),
+    );
+    expect(state.habits.map((h) => h.color)).toEqual(['teal', 'amber', 'coral']);
+  });
+
+  it('save → load сохраняет выбранный цвет; ключ и версия прежние', () => {
+    const storage = createStorage();
+    const state = sampleState();
+    state.habits[0] = { ...state.habits[0], color: 'pink' };
+    saveState(storage, state);
+    const loaded = loadState(storage);
+    expect(loaded.habits[0].color).toBe('pink');
+    expect(loaded.habits[1].color).toBe(state.habits[1].color);
+    const raw = JSON.parse(storage.getItem('habit-tracker:v1'));
+    expect(raw.version).toBe(1);
+    expect(raw.habits[0].color).toBe('pink');
+  });
+
+  it('цвета новых привычек переживают save → load', () => {
+    const storage = createStorage();
+    const state = sampleState();
+    expect(state.habits.map((h) => h.color)).toEqual(['teal', 'purple']);
+    saveState(storage, state);
+    expect(loadState(storage).habits.map((h) => h.color)).toEqual(['teal', 'purple']);
+  });
+
+  it('сохранение данных не трогает ключ темы (AC-35)', () => {
+    const storage = createStorage({ 'habit-tracker:theme': 'dark' });
+    saveState(storage, sampleState());
+    expect(storage.getItem('habit-tracker:theme')).toBe('dark');
+  });
+
+  it('ключ темы рядом с данными не мешает загрузке привычек (AC-35)', () => {
+    const storage = createStorage({
+      'habit-tracker:theme': 'light',
+      [STORAGE_KEY]: JSON.stringify({ version: 1, habits: [legacy('a')] }),
+    });
+    const state = loadState(storage);
+    expect(state.habits).toHaveLength(1);
+    expect(state.habits[0].color).toBe('teal');
+  });
+});

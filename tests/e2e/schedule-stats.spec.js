@@ -506,7 +506,16 @@ test.describe('лучший день недели, сортировка, пус�
     await expect(statsRow(page, 'none')).toContainText('0 из 0');
 
     await expect(statsRow(page, 'high')).toContainText(htmlName);
-    await expect(statsRow(page, 'high').locator('b, img')).toHaveCount(0);
+    // Название — только текст; единственная картинка — эмодзи Noto 💧 (AC-37) в месте эмодзи.
+    const high = statsRow(page, 'high');
+    await expect(high.locator('.stats-name')).toHaveCount(1);
+    await expect(high.locator('.stats-name *')).toHaveCount(0);
+    await expect(high.locator('b')).toHaveCount(0);
+    await expect(high.locator('img[src="x"]')).toHaveCount(0);
+    await expect(high.locator('img')).toHaveCount(1);
+    const emojiImg = high.locator('.stats-emoji img.emoji-img');
+    await expect(emojiImg).toHaveCount(1);
+    await expect(emojiImg).toHaveAttribute('src', 'emoji/1f4a7.svg');
     expect(errors).toEqual([]);
   });
 

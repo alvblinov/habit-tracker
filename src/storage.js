@@ -5,10 +5,12 @@ import { isDateKey } from './dates.js';
 import { createEmptyState, normalizeName, normalizeEmoji, MAX_NAME_LENGTH } from './habits.js';
 import { normalizeReminder } from './reminders.js';
 import { normalizeDays } from './schedule.js';
+import { PALETTE, normalizeColor } from './colors.js';
 
 export const STORAGE_KEY = 'habit-tracker:v1';
 
-function sanitizeHabit(raw) {
+// index — позиция привычки в загруженном списке (для цвета по порядку).
+function sanitizeHabit(raw, index) {
   if (!raw || typeof raw !== 'object') return null;
   if (typeof raw.id !== 'string' || raw.id === '') return null;
   const name = normalizeName(raw.name);
@@ -27,6 +29,8 @@ function sanitizeHabit(raw) {
     reminder: normalizeReminder(raw.reminder),
     // Старые данные без расписания и битые days → все 7 дней («каждый день»).
     days: normalizeDays(raw.days),
+    // Старые данные без цвета и битый цвет → цвет палитры по позиции в списке.
+    color: normalizeColor(raw.color) ?? PALETTE[index % PALETTE.length],
   };
 }
 
@@ -53,7 +57,7 @@ export function loadState(storage) {
   const state = createEmptyState();
   const seen = new Set();
   for (const raw of data.habits) {
-    const habit = sanitizeHabit(raw);
+    const habit = sanitizeHabit(raw, state.habits.length);
     if (habit && !seen.has(habit.id)) {
       seen.add(habit.id);
       state.habits.push(habit);

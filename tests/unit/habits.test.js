@@ -570,3 +570,136 @@ describe('updateHabit с расписанием (AC-23)', () => {
     expect(getBestStreak(s1.habits[0])).toBe(2);
   });
 });
+
+// --- Итерация 005: цвет привычки (AC-32) ---
+
+describe('addHabit: цвет привычки (AC-32)', () => {
+  const PALETTE_ORDER = ['teal', 'purple', 'coral', 'pink', 'blue', 'green', 'amber', 'gray'];
+
+  function addMany(count, initial = createEmptyState()) {
+    let s = initial;
+    for (let i = 0; i < count; i += 1) {
+      s = addHabit(s, { name: `П${i}` }, { id: `n${i}`, todayKey: TODAY });
+    }
+    return s;
+  }
+
+  it('первая привычка получает первый цвет палитры', () => {
+    const s = addMany(1);
+    expect(s.habits[0].color).toBe('teal');
+  });
+
+  it('новые привычки получают разные цвета, пока есть свободные', () => {
+    const s = addMany(8);
+    const colors = s.habits.map((h) => h.color);
+    expect(colors).toEqual(PALETTE_ORDER);
+    expect(new Set(colors).size).toBe(8);
+  });
+
+  it('выбирается первый свободный цвет, занятые пропускаются', () => {
+    const s0 = stateWith({ ...habitWith([], 'a'), color: 'teal' }, { ...habitWith([], 'b'), color: 'coral' });
+    const s1 = addHabit(s0, { name: 'Новая' }, { id: 'c', todayKey: TODAY });
+    expect(s1.habits[2].color).toBe('purple');
+  });
+
+  it('цвет удалённой привычки снова свободен', () => {
+    let s = addMany(3);
+    s = removeHabit(s, 'n1'); // освобождается purple
+    s = addHabit(s, { name: 'Новая' }, { id: 'x', todayKey: TODAY });
+    expect(s.habits.find((h) => h.id === 'x').color).toBe('purple');
+  });
+
+  it('все 8 заняты → цвета по кругу, значение остаётся ключом палитры', () => {
+    const s = addMany(10);
+    expect(s.habits[8].color).toBe('teal');
+    expect(s.habits[9].color).toBe('purple');
+  });
+
+  it('пустое название не добавляется — цвет не расходуется', () => {
+    let s = addHabit(createEmptyState(), { name: '   ' }, { id: 'bad', todayKey: TODAY });
+    s = addHabit(s, { name: 'Ок' }, { id: 'ok', todayKey: TODAY });
+    expect(s.habits).toHaveLength(1);
+    expect(s.habits[0].color).toBe('teal');
+  });
+});
+
+describe('updateHabit: цвет (AC-32)', () => {
+  const colored = (color = 'teal') => ({
+    id: 'h1',
+    name: 'Читать',
+    emoji: '📚',
+    createdAt: '2026-09-01',
+    done: ['2026-10-11', '2026-10-12'],
+    reminder: { mode: 'times', times: ['08:00'] },
+    days: [1, 2, 3, 4, 5, 6, 7],
+    color,
+  });
+
+  it.each(['teal', 'purple', 'coral', 'pink', 'blue', 'green', 'amber', 'gray'])(
+    'можно выбрать любой цвет палитры: %s',
+    (color) => {
+      const start = color === 'teal' ? 'gray' : 'teal';
+      const s1 = updateHabit(stateWith(colored(start)), 'h1', { name: 'Читать', emoji: '📚', color });
+      expect(s1.habits[0].color).toBe(color);
+    },
+  );
+
+  it('смена только цвета → новое состояние, остальные поля прежние', () => {
+    const s0 = stateWith(colored('teal'));
+    const s1 = updateHabit(s0, 'h1', { name: 'Читать', emoji: '📚', color: 'pink' });
+    expect(s1).not.toBe(s0);
+    expect(s1.habits[0]).toEqual({ ...colored('teal'), color: 'pink' });
+    expect(s0.habits[0].color).toBe('teal');
+  });
+
+  it('цвет меняется вместе с названием, эмодзи и днями', () => {
+    const s1 = updateHabit(stateWith(colored('teal')), 'h1', {
+      name: 'Книга',
+      emoji: '🎸',
+      days: [1, 3, 5],
+      color: 'blue',
+    });
+    expect(s1.habits[0]).toMatchObject({ name: 'Книга', emoji: '🎸', days: [1, 3, 5], color: 'blue' });
+    expect(s1.habits[0].done).toEqual(['2026-10-11', '2026-10-12']);
+  });
+
+  it('тот же цвет, название и эмодзи → то же состояние', () => {
+    const s0 = stateWith(colored('amber'));
+    expect(updateHabit(s0, 'h1', { name: 'Читать', emoji: '📚', color: 'amber' })).toBe(s0);
+  });
+
+  it.each([
+    ['не из палитры', 'neon'],
+    ['HEX', '#ff0000'],
+    ['null', null],
+    ['число', 5],
+  ])('цвет %s не применяется — цвет прежний', (_title, color) => {
+    const s0 = stateWith(colored('coral'));
+    const s1 = updateHabit(s0, 'h1', { name: 'Читать', emoji: '📚', color });
+    expect(s1.habits[0].color).toBe('coral');
+  });
+
+  it('без поля color цвет не меняется', () => {
+    const s1 = updateHabit(stateWith(colored('green')), 'h1', { name: 'Новое', emoji: '💧' });
+    expect(s1.habits[0].name).toBe('Новое');
+    expect(s1.habits[0].color).toBe('green');
+  });
+
+  it('пустое название не сохраняется — цвет тоже не меняется (AC-20)', () => {
+    const s0 = stateWith(colored('teal'));
+    expect(updateHabit(s0, 'h1', { name: '   ', emoji: '📚', color: 'pink' })).toBe(s0);
+  });
+
+  it('цвет другой привычки не меняется', () => {
+    const other = { ...colored('purple'), id: 'h2' };
+    const s1 = updateHabit(stateWith(colored('teal'), other), 'h1', { name: 'Читать', emoji: '📚', color: 'pink' });
+    expect(s1.habits[1]).toEqual(other);
+  });
+
+  it('смена цвета не влияет на серию и рекорд', () => {
+    const s0 = stateWith(colored('teal'));
+    const s1 = updateHabit(s0, 'h1', { name: 'Читать', emoji: '📚', color: 'gray' });
+    expect(getStreak(s1.habits[0], TODAY)).toBe(getStreak(s0.habits[0], TODAY));
+    expect(getBestStreak(s1.habits[0])).toBe(getBestStreak(s0.habits[0]));
+  });
+});
