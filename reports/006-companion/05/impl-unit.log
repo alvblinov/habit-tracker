@@ -1,0 +1,16 @@
+
+> habit-tracker@0.1.0 test:unit
+> vitest run
+
+
+ RUN  v5.0.4 C:/Users/1/Documents/habit-tracker
+
+
+ Test Files  13 passed (13)
+      Tests  661 passed (661)
+   Start at  14:24:32
+   Duration  1.14s (tests 42%, import 36%, transform 13%, worker 9%)
+
+    Isolate  13 workers spawned · ~345ms startup each (spawn + environment, per file)
+             at least ~296ms faster with isolate: false — reuses workers across files instead of one per file
+

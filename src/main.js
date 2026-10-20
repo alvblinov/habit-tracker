@@ -32,6 +32,22 @@ import { computeStats, DEFAULT_PERIOD } from './stats.js';
 import { PALETTE, COLOR_LABELS, normalizeColor } from './colors.js';
 import { THEME_KEY, normalizeTheme, resolveTheme, toggleTheme } from './theme.js';
 import { staticEmojiUrl, animatedEmojiUrl } from './emoji-assets.js';
+import {
+  CHARACTERS,
+  COMPANION_KEY,
+  DEFAULT_CHARACTER,
+  getCharacter,
+  normalizeCompanionSettings,
+  normalizeCompanionName,
+  companionImage,
+  pickPhrase,
+  companionEventForMark,
+  companionEventForAdd,
+  accentOf,
+} from './companion.js';
+import { QUICK_QUESTIONS, normalizeQuestion, getAnswerEntry, answerText, answerQuestion } from './companion-qa.js';
+import { tipForDay, shouldShowTip } from './companion-tips.js';
+import { TOUR_STEPS } from './companion-tour.js';
 
 const GRID_DAYS = 30;
 
@@ -140,6 +156,14 @@ function onTodayToggled(habitId, todayKey, next) {
 function cardEmojiUrl(char) {
   if (prefersReducedMotion()) return staticEmojiUrl(char);
   return animatedEmojiUrl(char) ?? staticEmojiUrl(char);
+}
+
+// Статичный SVG фоном у анимированной картинки карточки; у статичной фон не нужен.
+function setStaticEmojiBackground(img, char) {
+  const animated = img.getAttribute('src') !== staticEmojiUrl(char);
+  // Путь строится из кодов символа (только hex), пользовательский текст сюда не попадает.
+  img.style.backgroundImage = animated ? `url("${staticEmojiUrl(char)}")` : '';
+  img.classList.toggle('has-static-bg', animated);
 }
 
 function createEmojiImg(src) {
@@ -270,8 +294,11 @@ form.addEventListener('submit', (event) => {
   }
   nameInput.value = '';
   resetEmoji();
+  // Помощник хвалит добавление (первую привычку — отдельно).
+  const said = companionEventForAdd({ before: state, after: next });
   commit(next);
   nameInput.focus();
+  if (said) say(said.event, said.ctx);
 });
 
 // --- Отрисовка списка из состояния ---
@@ -300,7 +327,11 @@ function renderCard(habit, today, index, prevEmojiImgs = new Map()) {
     );
     const bouncing = bounceHabitId === habit.id;
     if (bouncing) emoji.dataset.bounce = 'true';
-    emoji.querySelector('.emoji-img').classList.toggle('is-bounce', bouncing);
+    const emojiImg = emoji.querySelector('.emoji-img');
+    emojiImg.classList.toggle('is-bounce', bouncing);
+    // Под анимацией — статичная картинка того же эмодзи фоном самой картинки:
+    // прозрачные кадры анимации (💧 и др.) не оставляют плашку пустой.
+    setStaticEmojiBackground(emojiImg, habit.emoji);
     const name = document.createElement('span');
     name.className = 'habit-name';
     name.dataset.testid = 'habit-name';
@@ -354,7 +385,10 @@ function renderCard(habit, today, index, prevEmojiImgs = new Map()) {
     popTarget = { habitId: habit.id, testid: 'toggle-today' };
     const next = toggleDay(state, habit.id, now, now);
     onTodayToggled(habit.id, now, next);
+    // Повод для реплики помощника — по состоянию до и после отметки.
+    const said = companionEventForMark({ before: state, after: next, today: now, habitId: habit.id });
     commit(next);
+    if (said) say(said.event, said.ctx);
   });
 
   const deleteBtn = document.createElement('button');
@@ -364,7 +398,10 @@ function renderCard(habit, today, index, prevEmojiImgs = new Map()) {
   deleteBtn.textContent = 'Удалить';
   deleteBtn.addEventListener('click', () => {
     if (window.confirm(`Удалить привычку «${habit.name}»?`)) {
-      commit(removeHabit(state, habit.id));
+      const next = removeHabit(state, habit.id);
+      if (next === state) return;
+      commit(next);
+      say('deleted', { habit: habit.name });
     }
   });
 
@@ -425,7 +462,10 @@ function renderCard(habit, today, index, prevEmojiImgs = new Map()) {
       const next = toggleDay(state, habit.id, key, now);
       // Эффект — только при отметке сегодняшнего дня, не прошлых дней и не при снятии.
       if (key === now) onTodayToggled(habit.id, now, next);
+      // Помощник реагирует на любую клетку: сегодня и прошлые дни.
+      const said = companionEventForMark({ before: state, after: next, today: now, date: key, habitId: habit.id });
       commit(next);
+      if (said) say(said.event, said.ctx);
     });
     grid.append(cell);
   }
@@ -493,9 +533,15 @@ function saveEdit(habitId) {
   const next = updateHabit(state, habitId, editDraft);
   editingId = null;
   editDraft = null;
-  if (next === state) render();
-  else commit(next);
+  if (next === state) {
+    render();
+    focusInCard(habitId, 'edit-habit');
+    return;
+  }
+  commit(next);
   focusInCard(habitId, 'edit-habit');
+  const updated = next.habits.find((h) => h.id === habitId);
+  if (updated) say('edited', { habit: updated.name });
 }
 
 function renderEditForm(habit) {
@@ -714,6 +760,8 @@ function saveDraft(habitId) {
   openReminderId = null;
   draft = null;
   commit(next);
+  const habit = next.habits.find((h) => h.id === habitId);
+  if (habit) say('reminderSet', { habit: habit.name });
 }
 
 function makeField(labelText, control) {
@@ -1110,11 +1158,683 @@ function render() {
   popTarget = null;
   restoreFocus(savedFocus);
   renderStats(today);
+  renderCompanion();
 }
 
+// --- Помощник: плавающий виджет в углу, облачко, меню, знакомство, экскурсия ---
+// Настройки — в своём ключе habit-tracker:companion; данные привычек не меняются.
+// Помощник обновляется точечно (renderCompanion), его таймеры (печать, скрытие облачка,
+// подпрыгивание, конфетти) список привычек не перерисовывают.
+
+const BUBBLE_MIN_MS = 6000;
+const BUBBLE_AFTER_TYPING_MS = 4000;
+const TYPE_MS = 25;
+const TALK_MS = 700;
+const CONFETTI_COUNT = 36;
+const CONFETTI_MS = 1500;
+
+const companionWrap = document.querySelector('#companion-wrap');
+const companionBtn = document.querySelector('#companion');
+const companionImg = document.querySelector('#companion-img');
+const companionBubble = document.querySelector('#companion-bubble');
+const companionBubbleName = document.querySelector('#companion-bubble-name');
+const companionBubbleText = document.querySelector('#companion-bubble-text');
+const companionBubbleClose = document.querySelector('#companion-bubble-close');
+const companionBubbleActions = document.querySelector('#companion-bubble-actions');
+const companionConfetti = document.querySelector('#companion-confetti');
+const companionMenu = document.querySelector('#companion-menu');
+const companionAskForm = document.querySelector('#companion-ask-form');
+const companionAskInput = document.querySelector('#companion-ask-input');
+const companionQuick = document.querySelector('#companion-quick');
+const companionTourStartBtn = document.querySelector('#companion-tour-start');
+const companionChangeBtn = document.querySelector('#companion-change');
+const companionPicker = document.querySelector('#companion-picker');
+const companionRenameBtn = document.querySelector('#companion-rename');
+const companionRenameForm = document.querySelector('#companion-rename-form');
+const companionNameInput = document.querySelector('#companion-name-input');
+const companionRenameError = document.querySelector('#companion-rename-error');
+const companionOffBtn = document.querySelector('#companion-off');
+const companionOnBtn = document.querySelector('#companion-on');
+const companionIntro = document.querySelector('#companion-intro');
+const companionIntroTitle = document.querySelector('#companion-intro-title');
+const companionOptions = document.querySelector('#companion-options');
+const companionIntroSkip = document.querySelector('#companion-intro-skip');
+const tourEl = document.querySelector('#companion-tour');
+const tourSpot = document.querySelector('#companion-tour-spot');
+const tourStepEl = document.querySelector('#companion-tour-step');
+const tourCountEl = document.querySelector('#companion-tour-count');
+const tourTitleEl = document.querySelector('#companion-tour-title');
+const tourTextEl = document.querySelector('#companion-tour-text');
+const tourPrevBtn = document.querySelector('#companion-tour-prev');
+const tourNextBtn = document.querySelector('#companion-tour-next');
+const tourCloseBtn = document.querySelector('#companion-tour-close');
+
+let companion = loadCompanion();
+let companionMenuOpen = false;
+let companionPickerOpen = false;
+let companionRenameOpen = false;
+let bubbleTimer = null;
+let typingTimer = null;
+let talkTimer = null;
+let confettiTimer = null;
+// Отложенные реплики (предложение экскурсии, совет дня): показываются,
+// когда текущее облачко скроется само или по «закрыть».
+let bubbleQueue = [];
+// Экскурсия: номер шага (-1 — закрыта) и запрос кадра на перестановку подсветки.
+let tourIndex = -1;
+let tourFrame = null;
+// Заголовок знакомства выбирается при открытии страницы: были ли уже привычки
+// (тогда «У нас новенький…»); добавление привычки до выбора его не меняет.
+const introForReturningUser = state.habits.length > 0;
+
+function loadCompanion() {
+  try {
+    return normalizeCompanionSettings(window.localStorage.getItem(COMPANION_KEY));
+  } catch {
+    return normalizeCompanionSettings(null);
+  }
+}
+
+function saveCompanion(next) {
+  companion = normalizeCompanionSettings(next);
+  try {
+    // Только свой ключ помощника.
+    window.localStorage.setItem(COMPANION_KEY, JSON.stringify(companion));
+  } catch {
+    // Не сохранилось — настройки действуют до перезагрузки.
+  }
+}
+
+function companionActive() {
+  return companion.enabled && companion.introduced;
+}
+
+// Перезапуск CSS-анимации: снять класс, принудительный пересчёт, вернуть класс.
+function restartClass(el, className) {
+  el.classList.remove(className);
+  void el.offsetWidth;
+  el.classList.add(className);
+}
+
+function clearBubbleTimers() {
+  if (bubbleTimer !== null) clearTimeout(bubbleTimer);
+  if (typingTimer !== null) clearTimeout(typingTimer);
+  bubbleTimer = null;
+  typingTimer = null;
+}
+
+// Скрыть облачко без показа отложенных реплик.
+function hideBubble() {
+  clearBubbleTimers();
+  companionBubble.hidden = true;
+  companionBubble.setAttribute('aria-busy', 'false');
+  companionBubble.classList.remove('is-appearing');
+  companionBubbleActions.replaceChildren();
+  companionBubbleActions.hidden = true;
+}
+
+// Облачко отработало (само или по «закрыть») — показать следующую отложенную реплику.
+function finishBubble() {
+  hideBubble();
+  const next = bubbleQueue.shift();
+  if (next) next();
+}
+
+function queueBubble(show) {
+  if (!bubbleQueue.includes(show)) bubbleQueue.push(show);
+}
+
+// Персонаж коротко подпрыгивает в момент реплики.
+function talk() {
+  if (prefersReducedMotion()) return;
+  restartClass(companionBtn, 'is-talking');
+  if (talkTimer !== null) clearTimeout(talkTimer);
+  talkTimer = setTimeout(() => {
+    talkTimer = null;
+    companionBtn.classList.remove('is-talking');
+  }, TALK_MS);
+}
+
+// Конфетти на вехе серии: кусочки CSS-анимации в цветах палитры, удаляются после.
+function launchConfetti() {
+  if (prefersReducedMotion()) return;
+  const pieces = [];
+  for (let i = 0; i < CONFETTI_COUNT; i += 1) {
+    const piece = document.createElement('span');
+    piece.className = 'confetti-piece';
+    piece.style.background = `var(--c-${PALETTE[i % PALETTE.length]})`;
+    piece.style.setProperty('--x', `${Math.round((Math.random() - 0.5) * 260)}px`);
+    piece.style.setProperty('--y', `${Math.round(-90 - Math.random() * 160)}px`);
+    piece.style.setProperty('--r', `${Math.round((Math.random() - 0.5) * 720)}deg`);
+    piece.style.setProperty('--delay', `${Math.round(Math.random() * 200)}ms`);
+    pieces.push(piece);
+  }
+  companionConfetti.replaceChildren(...pieces);
+  companionConfetti.dataset.active = 'true';
+  if (confettiTimer !== null) clearTimeout(confettiTimer);
+  confettiTimer = setTimeout(() => {
+    confettiTimer = null;
+    companionConfetti.replaceChildren();
+    delete companionConfetti.dataset.active;
+  }, CONFETTI_MS + 200);
+}
+
+/**
+ * На узком экране текст реплики ограничен тремя строками с прокруткой внутри (CSS).
+ * Если текст не помещается — data-scroll="true": прокрутка пальцем разрешена; иначе облачко
+ * клики не перехватывает. Полный текст (с ненапечатанным остатком) задаёт высоту сразу.
+ */
+function markBubbleScroll() {
+  companionBubbleText.scrollTop = 0;
+  const overflow = companionBubbleText.scrollHeight > companionBubbleText.clientHeight + 1;
+  companionBubble.dataset.scroll = overflow ? 'true' : 'false';
+}
+
+// Во время печати длинного текста прокрутка идёт следом, чтобы новые буквы были видны.
+function followTyping(part) {
+  if (companionBubble.dataset.scroll !== 'true') return;
+  const max = companionBubbleText.scrollHeight - companionBubbleText.clientHeight;
+  // Прокрутка целыми строками, чтобы верхняя строка не обрезалась посередине.
+  const line = parseFloat(getComputedStyle(companionBubbleText).lineHeight) || 1;
+  companionBubbleText.scrollTop = Math.min(max, Math.round((max * part) / line) * line);
+}
+
+/**
+ * Показать текст в облачке. Текст — только через textContent: печатается по буквам
+ * (наращивание textContent), полный текст сразу в data-full-text и aria-label;
+ * при «уменьшить движение» — сразу целиком и без анимаций.
+ * Новая реплика заменяет прежнюю; скрытие — через max(6 с, печать + 4 с).
+ * action — кнопка в облачке ({ label, testid, onClick }).
+ */
+function showBubble(text, { event, qa, action } = {}) {
+  if (!companionActive() || !text) return;
+  clearBubbleTimers();
+
+  companionBubble.dataset.event = event;
+  if (qa) companionBubble.dataset.qa = qa;
+  else delete companionBubble.dataset.qa;
+  companionBubbleName.textContent = companion.name;
+  companionBubbleText.dataset.fullText = text;
+  companionBubbleText.setAttribute('aria-label', text);
+
+  companionBubbleActions.replaceChildren();
+  companionBubbleActions.hidden = !action;
+  if (action) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'companion-bubble-action';
+    button.dataset.testid = action.testid;
+    button.textContent = action.label;
+    button.addEventListener('click', () => {
+      hideBubble();
+      action.onClick();
+    });
+    companionBubbleActions.append(button);
+  }
+
+  companionBubble.hidden = false;
+  const chars = [...text];
+  const reduced = prefersReducedMotion();
+  if (reduced) {
+    companionBubble.classList.remove('is-appearing');
+    companionBubbleText.textContent = text;
+    companionBubbleText.dataset.rest = '';
+    companionBubble.dataset.typing = 'false';
+    companionBubble.setAttribute('aria-busy', 'false');
+    markBubbleScroll();
+  } else {
+    restartClass(companionBubble, 'is-appearing');
+    companionBubbleText.textContent = '';
+    // Ненапечатанный остаток — невидимым через CSS (::after), облачко сразу полного размера.
+    companionBubbleText.dataset.rest = text;
+    companionBubble.dataset.typing = 'true';
+    // Пока текст печатается, экранный диктор ждёт (aria-busy) и читает фразу один раз.
+    companionBubble.setAttribute('aria-busy', 'true');
+    markBubbleScroll();
+    let shown = 0;
+    const typeNext = () => {
+      shown += 1;
+      companionBubbleText.textContent += chars[shown - 1];
+      companionBubbleText.dataset.rest = chars.slice(shown).join('');
+      followTyping(shown / chars.length);
+      if (shown < chars.length) {
+        typingTimer = setTimeout(typeNext, TYPE_MS);
+      } else {
+        typingTimer = null;
+        companionBubble.dataset.typing = 'false';
+        companionBubble.setAttribute('aria-busy', 'false');
+      }
+    };
+    typingTimer = setTimeout(typeNext, TYPE_MS);
+    talk();
+  }
+
+  const typingMs = reduced ? 0 : chars.length * TYPE_MS;
+  bubbleTimer = setTimeout(() => {
+    bubbleTimer = null;
+    finishBubble();
+  }, Math.max(BUBBLE_MIN_MS, typingMs + BUBBLE_AFTER_TYPING_MS));
+}
+
+// Реплика персонажа на повод; на вехе серии — ещё и конфетти.
+function say(event, ctx = {}, options = {}) {
+  if (!companionActive()) return;
+  const text = pickPhrase(
+    event,
+    { ...ctx, name: companion.name, hour: new Date().getHours() },
+    companion.character,
+    Math.random,
+  );
+  if (!text) return;
+  showBubble(text, { ...options, event });
+  if (event === 'milestone') launchConfetti();
+}
+
+// Приветствие со сводкой дня; без привычек — предложение добавить первую.
+function greet() {
+  if (state.habits.length === 0) {
+    say('empty');
+    return;
+  }
+  const { done, total } = getTodaySummary(state, getToday());
+  say('greeting', { done, total });
+}
+
+// Совет дня — не чаще раза в день (по локальной дате), только у включённого помощника.
+function showTip() {
+  const today = getToday();
+  if (!companionActive() || !shouldShowTip(companion, today)) return;
+  saveCompanion({ ...companion, lastTipDate: today });
+  const intro = pickPhrase('tipIntro', { name: companion.name }, companion.character, Math.random);
+  showBubble(`${intro} ${tipForDay(today)}`, { event: 'tip' });
+}
+
+// Совет дня после текущей реплики (или сразу, если облачко скрыто).
+function scheduleTip() {
+  if (!companionActive() || !shouldShowTip(companion, getToday())) return;
+  if (companionBubble.hidden) showTip();
+  else queueBubble(showTip);
+}
+
+// Предложение экскурсии — один раз, после знакомства.
+function offerTour() {
+  if (!companionActive() || companion.tourOffered) return;
+  saveCompanion({ ...companion, tourOffered: true });
+  say('tourOffer', {}, { action: { label: 'Покажи!', testid: 'companion-tour-accept', onClick: startTour } });
+}
+
+function createCompanionImg(id) {
+  const img = document.createElement('img');
+  img.className = 'companion-option-img';
+  img.alt = '';
+  img.setAttribute('aria-hidden', 'true');
+  img.draggable = false;
+  img.decoding = 'async';
+  // В карточке знакомства и в меню — статичные SVG; анимирован только сам помощник.
+  img.src = companionImage(id, { animated: false });
+  return img;
+}
+
+// Варианты персонажей и кнопки частых вопросов строятся один раз.
+function buildCompanionOptions() {
+  for (const character of CHARACTERS) {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'companion-option';
+    option.dataset.testid = 'companion-option';
+    option.dataset.character = character.id;
+    const name = document.createElement('span');
+    name.className = 'companion-option-name';
+    name.textContent = character.defaultName;
+    const label = document.createElement('span');
+    label.className = 'companion-option-label';
+    label.textContent = character.label;
+    option.append(createCompanionImg(character.id), name, label);
+    option.addEventListener('click', () => finishIntro(character.id));
+    companionOptions.append(option);
+
+    const pick = document.createElement('button');
+    pick.type = 'button';
+    pick.className = 'companion-pick';
+    pick.dataset.testid = 'companion-pick';
+    pick.dataset.character = character.id;
+    pick.title = `${character.label} ${character.defaultName}`;
+    pick.setAttribute('aria-label', `${character.label} ${character.defaultName}`);
+    pick.append(createCompanionImg(character.id));
+    pick.addEventListener('click', () => changeCharacter(character.id));
+    companionPicker.append(pick);
+  }
+
+  for (const question of QUICK_QUESTIONS) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'companion-quick-question';
+    button.dataset.testid = 'companion-quick-question';
+    button.dataset.qa = question.id;
+    button.textContent = question.label;
+    button.addEventListener('click', () => {
+      const entry = getAnswerEntry(question.id);
+      if (entry) showBubble(answerText(entry, companion.character), { event: 'answer', qa: entry.id });
+    });
+    companionQuick.append(button);
+  }
+}
+
+function renderCompanion() {
+  // Карточка знакомства — пока знакомство не пройдено.
+  companionIntro.hidden = companion.introduced;
+  if (!companion.introduced) {
+    companionIntroTitle.textContent =
+      introForReturningUser
+        ? 'У нас новенький — выбери себе помощника!'
+        : 'Привет! Я буду помогать тебе с привычками. Кого выберешь?';
+  }
+
+  const active = companionActive();
+  companionWrap.hidden = !active;
+  // Нижний отступ страницы под виджет — только когда помощник на экране.
+  document.body.classList.toggle('has-companion', active);
+  companionOnBtn.hidden = !(companion.introduced && !companion.enabled);
+  if (!active) {
+    companionMenuOpen = false;
+    bubbleQueue = [];
+    hideBubble();
+    closeTour({ focus: false });
+  }
+
+  const character = getCharacter(companion.character);
+  const accent = accentOf(character.id);
+  companionWrap.dataset.accent = accent;
+  companionBubble.dataset.accent = accent;
+  companionBubbleName.textContent = companion.name;
+  // При «уменьшить движение» — статичная картинка.
+  const src = companionImage(character.id, { animated: !prefersReducedMotion() });
+  if (companionImg.getAttribute('src') !== src) companionImg.src = src;
+  const label = `Помощник ${companion.name}`;
+  companionBtn.setAttribute('aria-label', label);
+  companionBtn.title = label;
+  companionBtn.dataset.character = character.id;
+
+  if (!companionMenuOpen) {
+    companionPickerOpen = false;
+    companionRenameOpen = false;
+  }
+  companionBtn.setAttribute('aria-expanded', String(companionMenuOpen));
+  companionMenu.hidden = !companionMenuOpen;
+  companionChangeBtn.setAttribute('aria-expanded', String(companionPickerOpen));
+  companionPicker.hidden = !companionPickerOpen;
+  for (const pick of companionPicker.children) {
+    pick.setAttribute('aria-pressed', String(pick.dataset.character === character.id));
+  }
+  companionRenameBtn.setAttribute('aria-expanded', String(companionRenameOpen));
+  companionRenameForm.hidden = !companionRenameOpen;
+  if (!companionRenameOpen) companionRenameError.hidden = true;
+}
+
+function focusCompanion() {
+  if (!companionWrap.hidden) companionBtn.focus();
+}
+
+function finishIntro(characterId) {
+  const focusWasInside = companionIntro.contains(document.activeElement);
+  const character = getCharacter(characterId);
+  saveCompanion({ ...companion, character: character.id, name: character.defaultName, enabled: true, introduced: true });
+  renderCompanion();
+  if (focusWasInside) focusCompanion();
+  say('intro');
+  // Сразу после знакомства — предложение экскурсии (один раз).
+  if (!companion.tourOffered) queueBubble(offerTour);
+}
+
+companionIntroSkip.addEventListener('click', () => finishIntro(DEFAULT_CHARACTER));
+
+function openCompanionMenu() {
+  companionMenuOpen = true;
+  companionPickerOpen = false;
+  companionRenameOpen = false;
+  renderCompanion();
+}
+
+function closeCompanionMenu({ focus = false } = {}) {
+  if (!companionMenuOpen) return;
+  companionMenuOpen = false;
+  renderCompanion();
+  if (focus) focusCompanion();
+}
+
+companionBtn.addEventListener('click', () => {
+  if (companionMenuOpen) {
+    closeCompanionMenu();
+    return;
+  }
+  openCompanionMenu();
+  say('poke');
+});
+
+companionBubbleClose.addEventListener('click', finishBubble);
+
+// «Спроси меня»: вопрос только сравнивается с ключевыми словами и сразу стирается из поля.
+companionAskForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const question = companionAskInput.value;
+  companionAskInput.value = '';
+  if (normalizeQuestion(question) === '') {
+    companionAskInput.focus();
+    return;
+  }
+  const answer = answerQuestion(question, companion.character);
+  showBubble(answer.text, { event: 'answer', qa: answer.id });
+  companionAskInput.focus();
+});
+
+companionTourStartBtn.addEventListener('click', () => {
+  closeCompanionMenu();
+  startTour();
+});
+
+companionChangeBtn.addEventListener('click', () => {
+  companionPickerOpen = !companionPickerOpen;
+  companionRenameOpen = false;
+  renderCompanion();
+});
+
+function changeCharacter(characterId) {
+  const character = getCharacter(characterId);
+  // Новый персонаж — со своим именем; тот же персонаж сохраняет текущее имя.
+  const name = character.id === companion.character ? companion.name : character.defaultName;
+  saveCompanion({ ...companion, character: character.id, name });
+  companionMenuOpen = false;
+  renderCompanion();
+  focusCompanion();
+  say('intro');
+}
+
+companionRenameBtn.addEventListener('click', () => {
+  companionRenameOpen = !companionRenameOpen;
+  companionPickerOpen = false;
+  renderCompanion();
+  if (companionRenameOpen) {
+    companionNameInput.value = companion.name;
+    companionNameInput.focus();
+    companionNameInput.select();
+  }
+});
+
+companionRenameForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const name = normalizeCompanionName(companionNameInput.value);
+  if (name === null) {
+    // Пустое имя или только пробелы — не сохраняем, форма остаётся открытой.
+    companionRenameError.hidden = false;
+    companionNameInput.focus();
+    return;
+  }
+  saveCompanion({ ...companion, name });
+  companionMenuOpen = false;
+  renderCompanion();
+  focusCompanion();
+  say('intro');
+});
+
+companionOffBtn.addEventListener('click', () => {
+  saveCompanion({ ...companion, enabled: false });
+  companionMenuOpen = false;
+  renderCompanion();
+  companionOnBtn.focus();
+});
+
+companionOnBtn.addEventListener('click', () => {
+  saveCompanion({ ...companion, enabled: true });
+  renderCompanion();
+  focusCompanion();
+  greet();
+});
+
+// --- Экскурсия: 6 шагов с подсветкой ---
+
+
+function tourOpen() {
+  return tourIndex >= 0;
+}
+
+// Первая видимая цель шага или null.
+function tourTarget(step) {
+  for (const el of document.querySelectorAll(step.target)) {
+    if (el.getClientRects().length > 0) return el;
+  }
+  return null;
+}
+
+function positionTour() {
+  tourFrame = null;
+  if (!tourOpen()) return;
+  const target = tourTarget(TOUR_STEPS[tourIndex]);
+  const margin = 8;
+  const vw = document.documentElement.clientWidth;
+  const vh = window.innerHeight;
+  const card = tourStepEl.getBoundingClientRect();
+  if (!target) {
+    tourSpot.hidden = true;
+    tourEl.dataset.hasTarget = 'false';
+    tourStepEl.style.top = `${Math.max(margin, (vh - card.height) / 2)}px`;
+    tourStepEl.style.left = `${Math.max(margin, (vw - card.width) / 2)}px`;
+    return;
+  }
+  const pad = 6;
+  const r = target.getBoundingClientRect();
+  tourSpot.hidden = false;
+  tourEl.dataset.hasTarget = 'true';
+  tourSpot.style.top = `${r.top - pad}px`;
+  tourSpot.style.left = `${r.left - pad}px`;
+  tourSpot.style.width = `${r.width + pad * 2}px`;
+  tourSpot.style.height = `${r.height + pad * 2}px`;
+  // Карточка — под целью, если не помещается — над ней, иначе у нижнего края.
+  let top = r.bottom + pad + 10;
+  if (top + card.height > vh - margin) top = r.top - pad - 10 - card.height;
+  if (top < margin) top = Math.max(margin, vh - card.height - margin);
+  const left = Math.min(Math.max(margin, r.left + r.width / 2 - card.width / 2), Math.max(margin, vw - card.width - margin));
+  tourStepEl.style.top = `${top}px`;
+  tourStepEl.style.left = `${left}px`;
+}
+
+function schedulePositionTour() {
+  if (tourFrame === null) tourFrame = requestAnimationFrame(positionTour);
+}
+
+function renderTourStep() {
+  const step = TOUR_STEPS[tourIndex];
+  const target = tourTarget(step);
+  tourCountEl.textContent = `Шаг ${tourIndex + 1} из ${TOUR_STEPS.length}`;
+  tourTitleEl.textContent = step.title;
+  tourTextEl.textContent = target || !step.missingText ? step.text : step.missingText;
+  tourStepEl.dataset.step = String(tourIndex + 1);
+  tourStepEl.dataset.stepId = step.id;
+  tourEl.dataset.target = step.target;
+  tourPrevBtn.disabled = tourIndex === 0;
+  tourNextBtn.textContent = tourIndex === TOUR_STEPS.length - 1 ? 'Готово' : 'Далее';
+  if (target) target.scrollIntoView({ block: 'center', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+  positionTour();
+}
+
+function startTour() {
+  if (!companionActive()) return;
+  companionMenuOpen = false;
+  renderCompanion();
+  hideBubble();
+  tourIndex = 0;
+  tourEl.hidden = false;
+  window.addEventListener('scroll', schedulePositionTour, true);
+  window.addEventListener('resize', schedulePositionTour);
+  renderTourStep();
+  tourNextBtn.focus();
+}
+
+function closeTour({ focus = true } = {}) {
+  if (!tourOpen()) return;
+  tourIndex = -1;
+  tourEl.hidden = true;
+  window.removeEventListener('scroll', schedulePositionTour, true);
+  window.removeEventListener('resize', schedulePositionTour);
+  if (tourFrame !== null) cancelAnimationFrame(tourFrame);
+  tourFrame = null;
+  if (focus) focusCompanion();
+}
+
+tourPrevBtn.addEventListener('click', () => {
+  if (tourIndex <= 0) return;
+  tourIndex -= 1;
+  renderTourStep();
+});
+
+tourNextBtn.addEventListener('click', () => {
+  if (tourIndex >= TOUR_STEPS.length - 1) {
+    closeTour();
+    return;
+  }
+  tourIndex += 1;
+  renderTourStep();
+  // Фокус остаётся на «Далее», даже если кнопка «Назад» стала доступной.
+  tourNextBtn.focus();
+});
+
+tourCloseBtn.addEventListener('click', () => closeTour());
+
+// Esc закрывает экскурсию, иначе меню; клик вне помощника закрывает меню.
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  if (tourOpen()) {
+    event.preventDefault();
+    closeTour();
+    return;
+  }
+  if (companionMenuOpen) closeCompanionMenu({ focus: true });
+});
+document.addEventListener('pointerdown', (event) => {
+  if (companionMenuOpen && !companionWrap.contains(event.target)) closeCompanionMenu();
+});
+
+// Настройка «уменьшить движение» изменилась — сменить картинку помощника.
+if (typeof window.matchMedia === 'function') {
+  const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  if (typeof motion.addEventListener === 'function') motion.addEventListener('change', renderCompanion);
+  else if (typeof motion.addListener === 'function') motion.addListener(renderCompanion);
+}
+
+// Другая вкладка изменила настройки помощника.
+window.addEventListener('storage', (event) => {
+  if (event.key !== COMPANION_KEY) return;
+  companion = loadCompanion();
+  renderCompanion();
+});
+
 buildEmojiOptions();
+buildCompanionOptions();
 renderThemeToggle();
 render();
+// Реплика при открытии — только после знакомства: приветствие со сводкой дня или «добавь первую»,
+// затем — совет дня, если сегодня его ещё не было.
+greet();
+scheduleTip();
 
 // Другая вкладка изменила данные — перечитать их, чтобы не затереть устаревшей копией.
 window.addEventListener('storage', (event) => {
@@ -1129,6 +1849,8 @@ function refresh() {
   reloadState();
   render();
   checkReminders();
+  // Вкладка могла пережить полночь — совет нового дня.
+  scheduleTip();
 }
 window.addEventListener('focus', refresh);
 document.addEventListener('visibilitychange', () => {

@@ -1,0 +1,52 @@
+2026-10-15T09:35:07+03:00
+command: npm run build
+
+> habit-tracker@0.1.0 build
+> vite build
+
+[36mvite v8.3.4 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 16 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                  9.52 kB │ gzip:  2.65 kB
+dist/assets/index-Cu7pQs1v.css  21.29 kB │ gzip:  4.90 kB
+dist/assets/index-B8JLgUFE.js   60.10 kB │ gzip: 18.43 kB
+
+[32m✓ built in 203ms[39m
+exit code: 0
+--- dist/companions:
+total 3492
+drwxr-xr-x 1 Admin 197121      0 Oct 15 09:35 .
+drwxr-xr-x 1 Admin 197121      0 Oct 15 09:35 ..
+-rw-r--r-- 1 Admin 197121   3050 Oct 14 18:06 1f427.svg
+-rw-r--r-- 1 Admin 197121 574382 Oct 14 18:06 1f427.webp
+-rw-r--r-- 1 Admin 197121   3625 Oct 14 18:06 1f431.svg
+-rw-r--r-- 1 Admin 197121 577926 Oct 14 18:06 1f431.webp
+-rw-r--r-- 1 Admin 197121   1962 Oct 14 18:06 1f438.svg
+-rw-r--r-- 1 Admin 197121 639748 Oct 14 18:06 1f438.webp
+-rw-r--r-- 1 Admin 197121  57652 Oct 14 18:06 1f43c.svg
+-rw-r--r-- 1 Admin 197121 470518 Oct 14 18:06 1f43c.webp
+-rw-r--r-- 1 Admin 197121   5379 Oct 14 18:06 1f989.svg
+-rw-r--r-- 1 Admin 197121 447964 Oct 14 18:06 1f989.webp
+-rw-r--r-- 1 Admin 197121   4662 Oct 14 18:06 1f98a.svg
+-rw-r--r-- 1 Admin 197121 430230 Oct 14 18:06 1f98a.webp
+-rw-r--r-- 1 Admin 197121   7330 Oct 14 18:06 1f994.svg
+-rw-r--r-- 1 Admin 197121 310302 Oct 14 18:06 1f994.webp
+-rw-r--r-- 1 Admin 197121    966 Oct 14 18:06 ATTRIBUTION.md
+count images: 14
+same 1f427.svg
+same 1f427.webp
+same 1f431.svg
+same 1f431.webp
+same 1f438.svg
+same 1f438.webp
+same 1f43c.svg
+same 1f43c.webp
+same 1f989.svg
+same 1f989.webp
+same 1f98a.svg
+same 1f98a.webp
+same 1f994.svg
+same 1f994.webp
+same ATTRIBUTION.md
