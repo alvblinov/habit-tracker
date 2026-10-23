@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { TOUR_STEPS } from '../../src/companion-tour.js';
+import { TOUR_STEPS, demoHabit } from '../../src/companion-tour.js';
 import { QUICK_QUESTIONS, getAnswerEntry, answerText, unknownAnswer } from '../../src/companion-qa.js';
 import { tipForDay } from '../../src/companion-tips.js';
 
@@ -731,6 +731,71 @@ test.describe('данные привычек не меняются (AC-46)', () 
 const manyHabits = (n = 8) =>
   seed(...Array.from({ length: n }, (_, i) => fresh(`h${i}`, i === n - 1 ? 'Последняя' : `Привычка ${i + 1}`)));
 
+// Итерация 007: карточка-пример в экскурсии без привычек (AC-55…AC-57).
+const DEMO = '[data-testid="tour-demo-card"]';
+const demoCard = (page) => page.locator(DEMO);
+/** Селектор цели шага i; без привычек шаги 2–5 ищем внутри карточки-примера. */
+const stepTarget = (i, inDemo) => (inDemo && i >= 1 && i <= 4 ? `${DEMO} ${TOUR_STEPS[i].target}` : TOUR_STEPS[i].target);
+
+/**
+ * Прямоугольники первой видимой цели и подсветки в один момент.
+ * settle: сначала подождать 150 мс и проверить, что прокрутка окна за это время не сдвинулась
+ * (плавная прокрутка закончилась); без settle — мгновенный замер (часы на паузе).
+ */
+function tourGeometry(page, selector, settle) {
+  return page.evaluate(
+    async ({ sel, wait }) => {
+      let stable = true;
+      if (wait) {
+        const x0 = window.scrollX;
+        const y0 = window.scrollY;
+        await new Promise((r) => setTimeout(r, 150));
+        stable = window.scrollX === x0 && window.scrollY === y0;
+      }
+      const el = [...document.querySelectorAll(sel)].find((e) => e.getClientRects().length > 0);
+      const spot = document.querySelector('[data-testid="companion-tour-spot"]');
+      const box = (r) => ({ top: r.top, left: r.left, bottom: r.bottom, right: r.right });
+      return {
+        stable,
+        vh: window.innerHeight,
+        vw: document.documentElement.clientWidth,
+        spotShown: !spot.hidden && spot.getClientRects().length > 0,
+        t: el ? box(el.getBoundingClientRect()) : null,
+        s: box(spot.getBoundingClientRect()),
+      };
+    },
+    { sel: selector, wait: settle },
+  );
+}
+
+/**
+ * Цель шага целиком в окне, подсветка совпадает с ней: охватывает цель и отстоит
+ * от каждого её края не больше чем на 12px. С settle — ждём окончания прокрутки (toPass).
+ */
+async function expectSpotOnTarget(page, selector, label, { settle }) {
+  const check = async () => {
+    const g = await tourGeometry(page, selector, settle);
+    expect(g.t, `${label}: цель ${selector} есть на странице`).not.toBeNull();
+    expect(g.stable, `${label}: прокрутка закончилась`).toBe(true);
+    expect(g.spotShown, `${label}: подсветка видна`).toBe(true);
+    const { t, s, vh, vw } = g;
+    expect(t.top, `${label}: верх цели в окне`).toBeGreaterThanOrEqual(-1);
+    expect(t.bottom, `${label}: низ цели в окне`).toBeLessThanOrEqual(vh + 1);
+    expect(t.left, `${label}: цель в окне слева`).toBeGreaterThanOrEqual(-1);
+    expect(t.right, `${label}: цель в окне справа`).toBeLessThanOrEqual(vw + 1);
+    expect(s.left, `${label}: подсветка слева`).toBeLessThanOrEqual(t.left + 1);
+    expect(s.top, `${label}: подсветка сверху`).toBeLessThanOrEqual(t.top + 1);
+    expect(s.right, `${label}: подсветка справа`).toBeGreaterThanOrEqual(t.right - 1);
+    expect(s.bottom, `${label}: подсветка снизу`).toBeGreaterThanOrEqual(t.bottom - 1);
+    expect(t.left - s.left, `${label}: подсветка не шире цели слева`).toBeLessThanOrEqual(12);
+    expect(t.top - s.top, `${label}: подсветка не выше цели`).toBeLessThanOrEqual(12);
+    expect(s.right - t.right, `${label}: подсветка не шире цели справа`).toBeLessThanOrEqual(12);
+    expect(s.bottom - t.bottom, `${label}: подсветка не ниже цели`).toBeLessThanOrEqual(12);
+  };
+  if (settle) await expect(check).toPass({ timeout: 5000 });
+  else await check();
+}
+
 test.describe('место помощника: правый нижний угол (AC-47)', () => {
   test('виджет fixed внизу справа; при прокрутке к последней карточке остаётся на месте и виден', async ({ page }) => {
     await seedStorage(page, { habits: manyHabits(), companion: met('cat') });
@@ -1226,17 +1291,348 @@ test.describe('экскурсия (AC-51)', () => {
     await expect(cardById(page, 'h0').getByTestId('toggle-today')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('без привычек: шаги про карточку объясняют без подсветки', async ({ page }) => {
+  // Итерация 007 (решение пользователя 23.10.2026): прежний тест «без привычек: шаги про карточку
+  // объясняют без подсветки» описывал отменённое поведение и заменён этим тестом (AC-55).
+  test('без привычек: все 6 шагов с подсветкой, шаги 2–5 — элементы карточки-примера, текст обычный (AC-55)', async ({ page }) => {
+    const errors = collectErrors(page);
     await seedStorage(page, { companion: met('cat') });
     await openPaused(page);
     await openMenu(page);
     await page.getByTestId('companion-tour-start').click();
-    await expect(tour(page)).toHaveAttribute('data-has-target', 'true'); // шаг 1 — форма есть всегда
+    await expect(tour(page)).toBeVisible();
+    await expect(demoCard(page)).toHaveCount(1);
+
+    for (let i = 0; i < 6; i += 1) {
+      const step = TOUR_STEPS[i];
+      await expect(page.getByTestId('companion-tour-count')).toHaveText(`Шаг ${i + 1} из 6`);
+      await expect(tourStep(page)).toHaveAttribute('data-step-id', step.id);
+      await expect(page.getByTestId('companion-tour-title')).toHaveText(step.title);
+      await expect(page.getByTestId('companion-tour-text')).toHaveText(step.text);
+      await expect(tour(page)).toHaveAttribute('data-has-target', 'true');
+      await expect(page.getByTestId('companion-tour-spot')).toBeVisible();
+
+      const selector = stepTarget(i, true);
+      if (i >= 1 && i <= 4) {
+        // Цель шага — внутри карточки-примера (настоящих карточек нет).
+        await expect(cards(page)).toHaveCount(0);
+        await expect(page.locator(selector).first()).toBeVisible();
+      }
+      await expectSpotOnTarget(page, selector, step.id, { settle: false });
+
+      if (i < 5) await page.getByTestId('companion-tour-next').click();
+    }
+    await expect(page.getByTestId('companion-tour-next')).toHaveText('Готово');
+    expect(errors).toEqual([]);
+  });
+
+  test('без привычек: пример только во время экскурсии, помечен, не реагирует на клики и клавиши; данные и сводка прежние; после «Готово», «Закрыть», Esc и reload — подсказка пустого списка (AC-56)', async ({ page }) => {
+    const errors = collectErrors(page);
+    await seedStorage(page, { companion: met('cat') });
+    await openPaused(page);
+    const rawBefore = await storedRaw(page);
+    const empty = page.getByTestId('empty-state');
+    const summary = page.getByTestId('today-summary');
+    const ringLabel = page.getByTestId('progress-ring-label');
+
+    // До экскурсии примера нет.
+    await expect(demoCard(page)).toHaveCount(0);
+    await expect(empty).toBeVisible();
+    await expect(empty).toHaveText('Добавьте первую привычку');
+
+    await openMenu(page);
+    await page.getByTestId('companion-tour-start').click();
+    await expect(tour(page)).toBeVisible();
+    const demo = demoCard(page);
+    await expect(demo).toHaveCount(1);
+    await expect(demo).toBeVisible();
+    await expect(demo.getByTestId('tour-demo-label')).toBeVisible();
+    await expect(demo.getByTestId('tour-demo-label')).toHaveText('Пример');
+    await expect(demo.getByTestId('habit-name')).toHaveText('Пример: пить воду');
+    await expect(demo.getByTestId('habit-emoji')).toHaveText('💧');
+    await expect(empty).toBeHidden();
+    await expect(cards(page)).toHaveCount(0);
+
+    // В сетке — несколько отмеченных прошлых дней, сегодня не отмечено.
+    const marked = demoHabit(TODAY).done;
+    expect(marked.length).toBeGreaterThan(1);
+    await expect(demo.locator('[data-testid="day-cell"][aria-pressed="true"]')).toHaveCount(marked.length);
+    for (const d of marked) await expect(cell(demo, d)).toHaveAttribute('aria-pressed', 'true');
+    await expect(cell(demo, TODAY)).toHaveAttribute('aria-pressed', 'false');
+    await expect(demo.getByTestId('toggle-today')).toHaveAttribute('aria-pressed', 'false');
+
+    // Шаг 2 — «Сегодня» примера. Пробуем нажать его кнопки и клетки мышью, событием и с клавиатуры.
     await page.getByTestId('companion-tour-next').click();
     await expect(page.getByTestId('companion-tour-count')).toHaveText('Шаг 2 из 6');
-    await expect(tour(page)).toHaveAttribute('data-has-target', 'false');
+    const markedDay = marked[marked.length - 1];
+    const controls = [
+      ['«Сегодня»', demo.getByTestId('toggle-today')],
+      ['клетка сегодня', cell(demo, TODAY)],
+      ['отмеченная клетка', cell(demo, markedDay)],
+      ['🔔', demo.getByTestId('reminder-toggle')],
+      ['✏️', demo.getByTestId('edit-habit')],
+    ];
+    for (const [label, el] of controls) {
+      const box = await el.boundingBox();
+      expect(box, label).not.toBeNull();
+      const x = box.x + box.width / 2;
+      const y = box.y + box.height / 2;
+      // Клик мышью там, где на экране элемент примера (если там не карточка шага экскурсии).
+      const overStep = await page.evaluate(
+        ([px, py]) => !!document.elementFromPoint(px, py)?.closest('[data-testid="companion-tour-step"]'),
+        [x, y],
+      );
+      if (!overStep) await page.mouse.click(x, y);
+      // Событие прямо на элементе — в обход затемнения.
+      await el.dispatchEvent('click');
+      // Клавиатура: фокус на элемент примера не попадает; Enter/пробел на нём ничего не делают.
+      const focused = await el.evaluate((node) => {
+        node.focus();
+        return document.activeElement === node;
+      });
+      expect(focused, `${label}: фокус не попадает на пример`).toBe(false);
+      await el.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true });
+      await el.dispatchEvent('keydown', { key: ' ', code: 'Space', bubbles: true });
+    }
+    await expect(demo.getByTestId('toggle-today')).toHaveAttribute('aria-pressed', 'false');
+    await expect(cell(demo, TODAY)).toHaveAttribute('aria-pressed', 'false');
+    await expect(cell(demo, markedDay)).toHaveAttribute('aria-pressed', 'true');
+    await expect(demo.locator('[data-testid="day-cell"][aria-pressed="true"]')).toHaveCount(marked.length);
+    await expect(demo.getByTestId('reminder-toggle')).toHaveAttribute('aria-expanded', 'false');
+    await expect(demo.getByTestId('edit-habit')).toHaveAttribute('aria-expanded', 'false');
+    await expect(summary).toHaveText('Сегодня выполнено 0 из 0');
+    await expect(ringLabel).toHaveText('0/0');
+    await expect(cards(page)).toHaveCount(0);
+    expect(await storedRaw(page)).toBe(rawBefore);
+    await expect(tour(page)).toBeVisible();
+    await expect(page.getByTestId('companion-tour-count')).toHaveText('Шаг 2 из 6');
+
+    const expectDemoGone = async (how) => {
+      await expect(tour(page), how).toBeHidden();
+      await expect(demoCard(page), how).toHaveCount(0);
+      await expect(empty, how).toBeVisible();
+      await expect(empty, how).toHaveText('Добавьте первую привычку');
+      await expect(summary, how).toHaveText('Сегодня выполнено 0 из 0');
+      expect(await storedRaw(page), how).toBe(rawBefore);
+    };
+
+    // «Готово» на последнем шаге.
+    for (let i = 1; i < 5; i += 1) await page.getByTestId('companion-tour-next').click();
+    await expect(page.getByTestId('companion-tour-count')).toHaveText('Шаг 6 из 6');
+    await expect(page.getByTestId('companion-tour-next')).toHaveText('Готово');
+    await page.getByTestId('companion-tour-next').click();
+    await expectDemoGone('Готово');
+
+    // «Закрыть».
+    await openMenu(page);
+    await page.getByTestId('companion-tour-start').click();
+    await expect(demoCard(page)).toHaveCount(1);
+    await page.getByTestId('companion-tour-next').click();
+    await page.getByTestId('companion-tour-close').click();
+    await expectDemoGone('Закрыть');
+
+    // Esc.
+    await openMenu(page);
+    await page.getByTestId('companion-tour-start').click();
+    await expect(demoCard(page)).toHaveCount(1);
+    await page.getByTestId('companion-tour-next').click();
+    await page.getByTestId('companion-tour-next').click();
+    await page.keyboard.press('Escape');
+    await expectDemoGone('Esc');
+
+    // Статистика пример не учитывает.
+    await page.getByTestId('stats-toggle').click();
+    await expect(page.getByTestId('stats-empty')).toBeVisible();
+    await expect(page.getByTestId('stats-row')).toHaveCount(0);
+
+    // После перезагрузки примера нет, данные прежние.
+    await page.reload();
+    await expect(demoCard(page)).toHaveCount(0);
+    await expect(empty).toBeVisible();
+    await expect(cards(page)).toHaveCount(0);
+    await expect(summary).toHaveText('Сегодня выполнено 0 из 0');
+    expect(await storedRaw(page)).toBe(rawBefore);
+    expect(errors).toEqual([]);
+  });
+
+  for (const [label, habits] of [
+    ['с привычками (3)', () => manyHabits(3)],
+    ['без привычек (пример)', () => null],
+  ]) {
+    test(`плавная прокрутка (без reduced motion), ${label}: цель каждого шага в окне и совпадает с подсветкой, включая шаг 6 (AC-57)`, async ({ page }) => {
+      // Перекрывает reduced motion из beforeEach: проверяем обычную плавную прокрутку.
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      const errors = collectErrors(page);
+      const data = habits();
+      await seedStorage(page, { habits: data, companion: met('cat') });
+      // Часы идут (не на паузе): таймеры, кадры и scrollend работают, как у пользователя.
+      await openRunning(page);
+      expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(false);
+
+      await openMenu(page);
+      await page.getByTestId('companion-tour-start').click();
+      await expect(tour(page)).toBeVisible();
+      // С привычками — настоящие карточки, примера нет (как раньше, AC-58).
+      await expect(demoCard(page)).toHaveCount(data ? 0 : 1);
+
+      for (let i = 0; i < 6; i += 1) {
+        const step = TOUR_STEPS[i];
+        await expect(page.getByTestId('companion-tour-count')).toHaveText(`Шаг ${i + 1} из 6`);
+        await expect(page.getByTestId('companion-tour-text')).toHaveText(step.text);
+        await expect(tour(page)).toHaveAttribute('data-has-target', 'true');
+        await expectSpotOnTarget(page, stepTarget(i, !data), step.id, { settle: true });
+        if (i < 5) await page.getByTestId('companion-tour-next').click();
+      }
+      await expect(page.getByTestId('companion-tour-next')).toHaveText('Готово');
+      await page.getByTestId('companion-tour-next').click();
+      await expect(tour(page)).toBeHidden();
+      await expect(demoCard(page)).toHaveCount(0);
+      expect(errors).toEqual([]);
+    });
+  }
+
+  // Прогон 02 (NOTE 1 аудита 01): закрытие экскурсии и смена данных из другой вкладки.
+  // Другая вкладка пишет в localStorage, а эта страница получает событие storage. В самой
+  // странице setItem событие не вызывает, поэтому запись и событие делаем вручную в page.evaluate.
+
+  test('без привычек: помощника выключили в другой вкладке во время экскурсии — экскурсия закрыта, примера нет, видна подсказка пустого списка; habit-tracker:v1 прежний', async ({ page }) => {
+    const errors = collectErrors(page);
+    await seedStorage(page, { companion: met('cat') });
+    await openPaused(page);
+    const rawBefore = await storedRaw(page);
+    const empty = page.getByTestId('empty-state');
+
+    await openMenu(page);
+    await page.getByTestId('companion-tour-start').click();
+    await expect(tour(page)).toBeVisible();
+    // Шаг 3 (сетка) — подсвечен элемент примера.
+    await page.getByTestId('companion-tour-next').click();
+    await page.getByTestId('companion-tour-next').click();
+    await expect(page.getByTestId('companion-tour-count')).toHaveText('Шаг 3 из 6');
+    await expect(demoCard(page)).toHaveCount(1);
+    await expect(empty).toBeHidden();
+    await expectSpotOnTarget(page, stepTarget(2, true), 'grid (пример)', { settle: false });
+
+    await page.evaluate(
+      ({ key, value }) => {
+        localStorage.setItem(key, value);
+        window.dispatchEvent(new StorageEvent('storage', { key, newValue: value, storageArea: localStorage }));
+      },
+      { key: COMPANION_KEY, value: JSON.stringify(met('cat', 'Мурзик', false)) },
+    );
+
+    await expect(tour(page)).toBeHidden();
     await expect(page.getByTestId('companion-tour-spot')).toBeHidden();
-    await expect(page.getByTestId('companion-tour-text')).toHaveText(TOUR_STEPS[1].missingText);
+    await expect(demoCard(page)).toHaveCount(0);
+    await expect(cards(page)).toHaveCount(0);
+    await expect(empty).toBeVisible();
+    await expect(empty).toHaveText('Добавьте первую привычку');
+    await expect(page.getByTestId('today-summary')).toHaveText('Сегодня выполнено 0 из 0');
+    // Помощник выключен (AC-45): его нет, есть кнопка «Включить помощника».
+    await expect(companion(page)).toBeHidden();
+    await expect(page.getByTestId('companion-on')).toBeVisible();
+    expect(await storedRaw(page)).toBe(rawBefore);
+    expect(errors).toEqual([]);
+  });
+
+  test('без привычек: в другой вкладке появилась привычка во время экскурсии — пример исчезает, настоящая карточка появляется, подсветка шага переходит на её элемент', async ({ page }) => {
+    const errors = collectErrors(page);
+    await seedStorage(page, { companion: met('cat') });
+    await openPaused(page);
+
+    await openMenu(page);
+    await page.getByTestId('companion-tour-start').click();
+    await expect(tour(page)).toBeVisible();
+    // Шаг 2 («Сегодня») — подсвечена кнопка примера.
+    await page.getByTestId('companion-tour-next').click();
+    await expect(page.getByTestId('companion-tour-count')).toHaveText('Шаг 2 из 6');
+    await expect(demoCard(page)).toHaveCount(1);
+    await expect(cards(page)).toHaveCount(0);
+    await expectSpotOnTarget(page, stepTarget(1, true), 'today (пример)', { settle: false });
+
+    const raw = JSON.stringify(seed(fresh('tab2', 'Из другой вкладки')));
+    await page.evaluate(
+      ({ key, value }) => {
+        localStorage.setItem(key, value);
+        window.dispatchEvent(new StorageEvent('storage', { key, newValue: value, storageArea: localStorage }));
+      },
+      { key: KEY, value: raw },
+    );
+    // Подсветка переезжает в следующем кадре (requestAnimationFrame) — часы на паузе, двигаем их.
+    await page.clock.runFor(100);
+
+    await expect(demoCard(page)).toHaveCount(0);
+    await expect(cards(page)).toHaveCount(1);
+    await expect(cardByName(page, 'Из другой вкладки')).toBeVisible();
+    await expect(page.getByTestId('empty-state')).toBeHidden();
+    // Экскурсия продолжается на том же шаге, с обычным текстом и подсветкой.
+    await expect(tour(page)).toBeVisible();
+    await expect(page.getByTestId('companion-tour-count')).toHaveText('Шаг 2 из 6');
+    await expect(page.getByTestId('companion-tour-text')).toHaveText(TOUR_STEPS[1].text);
+    await expect(tour(page)).toHaveAttribute('data-has-target', 'true');
+    // Цель — внутри настоящей карточки, подсветка совпадает с ней (у примера над названием была
+    // метка «Пример», поэтому прежняя рамка у примера не совпала бы с кнопкой настоящей карточки).
+    await expectSpotOnTarget(page, `[data-testid="habit-card"] ${TOUR_STEPS[1].target}`, 'today (настоящая)', { settle: false });
+
+    // Следующий шаг тоже ищет цель в настоящей карточке.
+    await page.getByTestId('companion-tour-next').click();
+    await expect(page.getByTestId('companion-tour-count')).toHaveText('Шаг 3 из 6');
+    await expect(tour(page)).toHaveAttribute('data-has-target', 'true');
+    await expectSpotOnTarget(page, `[data-testid="habit-card"] ${TOUR_STEPS[2].target}`, 'grid (настоящая)', { settle: false });
+
+    // Закрытие: карточка остаётся, подсказки пустого списка нет, данные — те, что записала другая вкладка.
+    await page.keyboard.press('Escape');
+    await expect(tour(page)).toBeHidden();
+    await expect(demoCard(page)).toHaveCount(0);
+    await expect(cards(page)).toHaveCount(1);
+    await expect(page.getByTestId('empty-state')).toBeHidden();
+    await expect(page.getByTestId('today-summary')).toHaveText('Сегодня выполнено 0 из 1');
+    expect(await storedRaw(page)).toBe(raw);
+    expect(errors).toEqual([]);
+  });
+
+  // NOTE 2 аудита 01: render() во время плавной прокрутки пересоздаёт карточки; проверка по окончании
+  // прокрутки должна искать цель заново и докрутить к ней. Прокрутку прерываем мгновенной прокруткой
+  // вниз в той же задаче (так плавная прокрутка «не доходит», как в исходном случае AC-57).
+  test('плавная прокрутка (без reduced motion): список перерисован и прокрутка прервана во время прокрутки к шагу 2 — цель всё равно в окне и совпадает с подсветкой (AC-57)', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    const errors = collectErrors(page);
+    const data = manyHabits(8);
+    await seedStorage(page, { habits: data, companion: met('cat') });
+    await openRunning(page);
+    expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(false);
+
+    await openMenu(page);
+    await page.getByTestId('companion-tour-start').click();
+    await expect(tour(page)).toBeVisible();
+    await expectSpotOnTarget(page, TOUR_STEPS[0].target, TOUR_STEPS[0].id, { settle: true });
+
+    const rawBefore = await storedRaw(page);
+    const result = await page.evaluate(
+      ({ key, value }) => {
+        const oldCard = document.querySelector('[data-testid="habit-card"]');
+        // «Далее» → шаг 2: плавная прокрутка к «Сегодня» первой карточки.
+        document.querySelector('[data-testid="companion-tour-next"]').click();
+        // Та же запись из другой вкладки: render() пересоздаёт карточки во время прокрутки.
+        window.dispatchEvent(new StorageEvent('storage', { key, newValue: value, storageArea: localStorage }));
+        // Прокрутка прерывается и уводит страницу вниз, первая карточка — вне окна.
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
+        const first = document.querySelector('[data-testid="habit-card"] [data-testid="toggle-today"]');
+        return {
+          recreated: !!oldCard && !oldCard.isConnected,
+          firstBottomAfterJump: first.getBoundingClientRect().bottom,
+        };
+      },
+      { key: KEY, value: rawBefore },
+    );
+    expect(result.recreated, 'карточки пересозданы во время прокрутки').toBe(true);
+    // Сценарий осмыслен, только если после прерывания цель действительно ушла из окна.
+    expect(result.firstBottomAfterJump, 'после прерывания цель выше окна').toBeLessThan(0);
+
+    await expect(page.getByTestId('companion-tour-count')).toHaveText('Шаг 2 из 6');
+    await expect(tour(page)).toHaveAttribute('data-has-target', 'true');
+    await expectSpotOnTarget(page, `[data-testid="habit-card"] ${TOUR_STEPS[1].target}`, TOUR_STEPS[1].id, { settle: true });
+    expect(await storedRaw(page)).toBe(rawBefore);
+    expect(errors).toEqual([]);
   });
 
   test('предлагается сразу после знакомства один раз; «Покажи!» запускает экскурсию', async ({ page }) => {

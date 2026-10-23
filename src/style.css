@@ -647,6 +647,23 @@ select {
   box-shadow: var(--shadow);
 }
 
+/* Карточка-пример экскурсии (без привычек): пунктирная рамка и метка «Пример». */
+.habit-card.is-demo {
+  border-style: dashed;
+  border-color: var(--border-strong);
+}
+
+.tour-demo-label {
+  justify-self: start;
+  margin: 0;
+  padding: 2px 10px;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--habit-strong, var(--muted));
+  background: var(--habit-soft, var(--surface-2));
+  border-radius: 999px;
+}
+
 .habit-header {
   display: flex;
   flex-wrap: wrap;

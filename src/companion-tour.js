@@ -1,6 +1,10 @@
 // Экскурсия помощника: 6 шагов с подсветкой элементов страницы.
-// Только данные: target — CSS-селектор цели (первый видимый элемент);
-// если цели нет (например, ещё нет привычек), шаг показывает missingText без подсветки.
+// target — CSS-селектор цели (первый видимый элемент). Без привычек на время экскурсии
+// показывается карточка-пример (demoHabit), и шаги 2–5 подсвечивают её элементы;
+// missingText — запасной текст на случай, если цели всё же нет.
+
+import { addDays } from './dates.js';
+import { ALL_DAYS } from './schedule.js';
 
 export const TOUR_STEPS = [
   {
@@ -44,3 +48,34 @@ export const TOUR_STEPS = [
     text: '«📊 Статистика» показывает процент выполнения, серии, рекорды и лучший день недели.',
   },
 ];
+
+// Карточка-пример для экскурсии без привычек: не сохраняется и в состояние не попадает.
+export const DEMO_HABIT_ID = 'tour-demo';
+
+export const DEMO_HABIT = Object.freeze({
+  id: DEMO_HABIT_ID,
+  name: 'Пример: пить воду',
+  emoji: '💧',
+  days: Object.freeze([...ALL_DAYS]),
+  createdAt: null,
+  done: Object.freeze([]),
+  reminder: null,
+});
+
+// Сколько дней назад отмечен пример: 4 из последних 6 (вчера отмечено — серия 2), сегодня не отмечено.
+const DEMO_DONE_DAYS_AGO = [5, 4, 2, 1];
+
+/** Копия примера с отметками за прошлые дни относительно переданного today (YYYY-MM-DD). */
+export function demoHabit(today) {
+  return {
+    ...DEMO_HABIT,
+    days: [...DEMO_HABIT.days],
+    createdAt: addDays(today, -6),
+    done: DEMO_DONE_DAYS_AGO.map((n) => addDays(today, -n)).sort(),
+  };
+}
+
+/** Нужен ли пример: привычек нет. */
+export function needsDemo(state) {
+  return !state || !Array.isArray(state.habits) || state.habits.length === 0;
+}
