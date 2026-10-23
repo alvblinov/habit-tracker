@@ -47,7 +47,7 @@ import {
 } from './companion.js';
 import { QUICK_QUESTIONS, normalizeQuestion, getAnswerEntry, answerText, answerQuestion } from './companion-qa.js';
 import { tipForDay, shouldShowTip } from './companion-tips.js';
-import { TOUR_STEPS } from './companion-tour.js';
+import { TOUR_STEPS, demoHabit, needsDemo } from './companion-tour.js';
 
 const GRID_DAYS = 30;
 
@@ -1131,7 +1131,9 @@ function render() {
   summaryEl.textContent = `Сегодня выполнено ${done} из ${total}`;
   renderRing(done, total);
 
-  emptyEl.hidden = state.habits.length > 0;
+  // Без привычек на время экскурсии — карточка-пример вместо подсказки пустого списка.
+  const showDemo = tourOpen() && needsDemo(state);
+  emptyEl.hidden = state.habits.length > 0 || showDemo;
 
   // Привычку с открытой панелью могли удалить (в т.ч. в другой вкладке).
   if (openReminderId !== null && !state.habits.some((h) => h.id === openReminderId)) {
@@ -1154,11 +1156,39 @@ function render() {
   listEl.replaceChildren(
     ...state.habits.map((habit, index) => renderCard(habit, today, index, prevEmojiImgs)),
   );
+  if (showDemo) listEl.append(renderDemoCard(today, prevEmojiImgs));
   // Анимация проигрывается один раз — при следующей перерисовке её уже нет.
   popTarget = null;
   restoreFocus(savedFocus);
   renderStats(today);
   renderCompanion();
+  // Список перестроен — подсветка экскурсии переезжает на новые элементы.
+  if (tourOpen()) schedulePositionTour();
+}
+
+// Карточка-пример для экскурсии без привычек: та же разметка, что у настоящей карточки,
+// но неактивная (inert), скрытая от читалок и с меткой «Пример». В состояние не попадает.
+function renderDemoCard(today, prevEmojiImgs) {
+  const li = renderCard(demoHabit(today), today, 0, prevEmojiImgs);
+  li.dataset.testid = 'tour-demo-card';
+  li.dataset.demo = 'true';
+  li.dataset.color = PALETTE[0];
+  li.inert = true;
+  li.setAttribute('inert', '');
+  li.setAttribute('aria-hidden', 'true');
+  li.classList.add('is-demo');
+  const label = document.createElement('p');
+  label.className = 'tour-demo-label';
+  label.dataset.testid = 'tour-demo-label';
+  label.textContent = 'Пример';
+  li.prepend(label);
+  // Запасная защита на случай браузера без inert: клики и клавиши не доходят до кнопок.
+  const block = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+  for (const type of ['click', 'keydown', 'pointerdown']) li.addEventListener(type, block, true);
+  return li;
 }
 
 // --- Помощник: плавающий виджет в углу, облачко, меню, знакомство, экскурсия ---
@@ -1697,12 +1727,67 @@ function tourOpen() {
   return tourIndex >= 0;
 }
 
-// Первая видимая цель шага или null.
+// Первая видимая цель шага или null: сначала в настоящих карточках, затем в примере.
 function tourTarget(step) {
+  let demo = null;
   for (const el of document.querySelectorAll(step.target)) {
-    if (el.getClientRects().length > 0) return el;
+    if (el.getClientRects().length === 0) continue;
+    if (!el.closest('[data-demo="true"]')) return el;
+    if (!demo) demo = el;
   }
-  return null;
+  return demo;
+}
+
+// Цель целиком в окне (если выше окна — хотя бы её верх).
+function inViewport(el) {
+  const r = el.getBoundingClientRect();
+  const vh = window.innerHeight;
+  if (r.height >= vh) return r.top >= -1 && r.top < vh;
+  return r.top >= -1 && r.bottom <= vh + 1;
+}
+
+// AC-57: плавная прокрутка может не дойти до цели (её прерывает следующая прокрутка или
+// перестройка страницы). По окончании прокрутки (scrollend, запасной таймер) — проверить
+// итоговую позицию; не в окне — докрутить без анимации и пересчитать подсветку.
+const TOUR_SCROLL_CHECK_MS = 1200;
+let tourScrollToken = 0;
+let tourScrollCleanup = null;
+
+function stopTourScrollCheck() {
+  tourScrollToken += 1;
+  if (tourScrollCleanup) tourScrollCleanup();
+  tourScrollCleanup = null;
+}
+
+function scrollToTourTarget(target) {
+  stopTourScrollCheck();
+  if (prefersReducedMotion()) {
+    target.scrollIntoView({ block: 'center', behavior: 'auto' });
+    return;
+  }
+  const token = tourScrollToken;
+  target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  let timer = null;
+  const onEnd = () => {
+    clearTimeout(timer);
+    timer = setTimeout(check, 50);
+  };
+  const check = () => {
+    if (token !== tourScrollToken) return;
+    stopTourScrollCheck();
+    if (!tourOpen()) return;
+    // Цель берётся заново: render() во время прокрутки мог пересоздать карточки и пример.
+    const current = tourTarget(TOUR_STEPS[tourIndex]);
+    if (!current) return;
+    if (!inViewport(current)) current.scrollIntoView({ block: 'center', behavior: 'auto' });
+    positionTour();
+  };
+  window.addEventListener('scrollend', onEnd, true);
+  timer = setTimeout(check, TOUR_SCROLL_CHECK_MS);
+  tourScrollCleanup = () => {
+    clearTimeout(timer);
+    window.removeEventListener('scrollend', onEnd, true);
+  };
 }
 
 function positionTour() {
@@ -1752,7 +1837,8 @@ function renderTourStep() {
   tourEl.dataset.target = step.target;
   tourPrevBtn.disabled = tourIndex === 0;
   tourNextBtn.textContent = tourIndex === TOUR_STEPS.length - 1 ? 'Готово' : 'Далее';
-  if (target) target.scrollIntoView({ block: 'center', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+  if (target) scrollToTourTarget(target);
+  else stopTourScrollCheck();
   positionTour();
 }
 
@@ -1765,6 +1851,8 @@ function startTour() {
   tourEl.hidden = false;
   window.addEventListener('scroll', schedulePositionTour, true);
   window.addEventListener('resize', schedulePositionTour);
+  // Без привычек — показать карточку-пример до первого шага.
+  if (needsDemo(state)) render();
   renderTourStep();
   tourNextBtn.focus();
 }
@@ -1777,6 +1865,9 @@ function closeTour({ focus = true } = {}) {
   window.removeEventListener('resize', schedulePositionTour);
   if (tourFrame !== null) cancelAnimationFrame(tourFrame);
   tourFrame = null;
+  stopTourScrollCheck();
+  // Убрать карточку-пример и вернуть обычный вид списка.
+  if (listEl.querySelector('[data-demo="true"]')) render();
   if (focus) focusCompanion();
 }
 
